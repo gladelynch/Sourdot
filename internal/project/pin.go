@@ -12,6 +12,14 @@ import (
 type PinSpec struct {
 	Version string
 	IsMono  bool
+
+	// TagName optionally narrows the spec to one exact upstream release
+	// ("4.8-dev3"), which Version alone cannot: every build in a series
+	// shares a version number, so a spec resolved from an installed record
+	// carries the tag to keep a pin on 4.8-dev3 from launching 4.8-dev2.
+	// Empty for the plain-text pin files below, which only ever name a
+	// version, and for anything else that can't identify a single build.
+	TagName string
 }
 
 // ParsePinValue parses a single pin value like "4.2.1" or "4.2.1-mono".
