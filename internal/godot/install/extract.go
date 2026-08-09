@@ -16,6 +16,17 @@ import (
 // recreates symlinks as real symlinks rather than flattening them into
 // regular files -- macOS .app bundles routinely contain framework
 // symlinks that would otherwise be silently corrupted.
+//
+// This symlink handling is unrelated to (and doesn't compromise) the
+// no-admin-required install/launch design: it only ever runs against the
+// asset already matched to the current host OS, and Windows editor zips
+// verified so far (win32/win64/mono, standard and .exe variants) contain
+// no symlink entries at all -- Windows software isn't packaged that way.
+// On the Windows build, os.Symlink requires Developer Mode or admin only
+// if it's ever actually called; since that never happens in practice
+// here, no elevation prompt is possible. If some future Windows asset
+// ever did include one, this would surface as a plain extraction error,
+// never a UAC prompt -- GodotVM never requests elevation anywhere.
 func ExtractZip(zipPath, destDir string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {

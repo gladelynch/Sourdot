@@ -64,6 +64,24 @@ internal/core/      UI-agnostic orchestration (VersionManager, ProjectManager) �
 internal/godot/      Release discovery (GitHub API) + install (download/extract/verify).
 internal/project/    Project folder scanning, project.godot parsing, pin-file resolution.
 internal/store/      Settings (JSON) + BoltDB (versions/projects/release cache).
-internal/platform/   Per-OS paths and (later) launch mechanics.
+internal/platform/   Per-OS paths and Launch (opens the Godot editor for a project).
 frontend/dist/       Plain HTML/CSS/JS, embedded as-is — no build step.
 ```
+
+## Testing
+
+```
+go test ./...                              # fast, offline, runs in CI on every push
+go test -tags integration ./internal/core/... -v   # hits the live GitHub API and installs a
+                                                     # real Godot version -- run locally, not in CI
+```
+
+## CI
+
+`.github/workflows/build.yml` builds on Linux/macOS/Windows on every push
+and PR (`go vet`, offline `go test`, and a real `wails build` per OS) —
+this is the automatable slice of cross-platform verification. It does
+**not** replace a human running the app on real Windows/macOS hardware:
+confirming the editor actually launches, no elevation/UAC prompt appears
+on Windows, and multiple installed versions coexist correctly on macOS
+are still outstanding and need someone with access to that hardware.
