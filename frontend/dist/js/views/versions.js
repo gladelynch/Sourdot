@@ -1,22 +1,106 @@
-// Versions view: browse/install/remove Godot versions, with a changelog
-// preview and a live install progress banner.
+// Versions view: one page holding both the installed versions (pinned at
+// the top) and the full upstream catalog below, grouped into collapsible
+// version series and covering every channel — stable, rc, beta, alpha and
+// dev. Release notes and changelogs open in the user's real browser.
+
+// How many series are expanded on first paint. The catalog runs to ~60
+// series, so everything past the newest few starts collapsed.
+const DEFAULT_EXPANDED_GROUPS = 2;
+
+const CHANNEL_FILTERS = {
+    all: () => true,
+    stable: (c) => c === "stable",
+    prerelease: (c) => c === "rc" || c === "beta" || c === "alpha",
+    dev: (c) => c === "dev",
+};
+
 const versionsView = {
+    state: {
+        groups: [],
+        releasesByTag: new Map(),
+        installedByKey: new Map(), // `${tagName}|${isMono}` -> InstalledVersion
+        installed: [],
+        defaultID: "",
+        channel: "all",
+        query: "",
+        // Two sets rather than one: a series is expanded by default based
+        // on its position, so we have to record explicit opens *and*
+        // explicit closes to tell "never touched" from "deliberately shut".
+        expanded: new Set(),
+        collapsed: new Set(),
+        loaded: false,
+        busy: false,
+    },
+
     async init() {
-        document.getElementById("browse-versions-btn").addEventListener("click", () => this.openBrowsePanel());
-        document.getElementById("browse-panel-close").addEventListener("click", () => this.closeBrowsePanel());
-        document.getElementById("browse-panel").addEventListener("click", (e) => {
-            if (e.target.id === "browse-panel") this.closeBrowsePanel(); // click on the overlay itself
+        document.getElementById("refresh-versions-btn")
+            .addEventListener("click", () => this.refresh());
+
+        for (const chip of document.querySelectorAll(".available-toolbar .chip")) {
+            chip.addEventListener("click", () => this.setChannel(chip.dataset.channel));
+        }
+
+        const search = document.getElementById("version-search");
+        search.addEventListener("input", () => {
+            this.state.query = search.value;
+            this.renderAvailable();
         });
+
+        // One delegated listener for the whole catalog: expanded series can
+        // put hundreds of buttons on the page, and they're re-rendered on
+        // every filter change.
+        document.getElementById("available-versions-list")
+            .addEventListener("click", (e) => this.onCatalogClick(e));
+        document.getElementById("installed-versions-list")
+            .addEventListener("click", (e) => this.onInstalledClick(e));
 
         events.on("download_progress", (evt) => this.onDownloadProgress(evt));
         events.on("checksum_verified", (evt) => this.onChecksumVerified(evt));
         events.on("install_complete", () => this.onInstallComplete());
 
-        await this.refreshInstalled();
+        await this.load();
+    },
+
+    async load() {
+        await Promise.all([this.refreshInstalled(), this.loadAvailable(false)]);
+    },
+
+    async refresh() {
+        await Promise.all([this.refreshInstalled(), this.loadAvailable(true)]);
+    },
+
+    // --- Data ---------------------------------------------------------
+
+    async loadAvailable(force) {
+        const btn = document.getElementById("refresh-versions-btn");
+        btn.disabled = true;
+        btn.textContent = force ? "Refreshing…" : "Refresh";
+        try {
+            const groups = (force
+                ? await api.refreshAvailableVersions()
+                : await api.listAvailableVersions()) || [];
+            this.state.groups = groups;
+            this.state.releasesByTag = new Map();
+            for (const group of groups) {
+                for (const rel of group.releases || []) {
+                    this.state.releasesByTag.set(rel.tagName, rel);
+                }
+            }
+            this.state.loaded = true;
+            this.renderAvailable();
+        } catch (err) {
+            document.getElementById("available-versions-list").innerHTML = `
+                <div class="empty-state">
+                    <p>Couldn't load the version catalog.</p>
+                    <p class="muted">${escapeHtml(String(err))}</p>
+                </div>`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Refresh";
+        }
     },
 
     async refreshInstalled() {
-        const container = document.getElementById("installed-versions-list");
         let installed = [];
         let defaultID = "";
         try {
@@ -27,52 +111,270 @@ const versionsView = {
         } catch (err) {
             console.error("failed to load installed versions:", err);
         }
-        this.renderInstalled(container, installed, defaultID);
+
+        // Deliberately not re-sorted here: the backend already returns
+        // these newest-and-most-stable first, using the same label ranking
+        // the catalog below is ordered by. Sorting again in JS can only
+        // disagree with it -- comparing labels as plain strings, as this
+        // used to, puts dev2 ahead of dev3 and beta ahead of rc.
+        this.state.installed = installed;
+        this.state.defaultID = defaultID || "";
+        this.state.installedByKey = new Map(
+            installed.map((v) => [installedKey(v.tagName, v.isMono), v]));
+
+        this.renderInstalled();
+        if (this.state.loaded) this.renderAvailable(); // flip Install <-> Uninstall
     },
 
-    renderInstalled(container, versions, defaultID) {
-        if (versions.length === 0) {
+    // --- Installed shelf ----------------------------------------------
+
+    renderInstalled() {
+        const container = document.getElementById("installed-versions-list");
+        const { installed, defaultID } = this.state;
+
+        document.getElementById("installed-count").textContent =
+            installed.length ? `${installed.length} on disk` : "";
+
+        if (installed.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <p>No Godot versions installed yet.</p>
-                    <p class="muted">Click "Browse available…" to install one.</p>
+                    <p class="muted">Pick one from the catalog below to install it.</p>
                 </div>`;
             return;
         }
 
-        container.innerHTML = "";
-        const list = document.createElement("div");
-        list.className = "version-list";
-        for (const v of versions) {
+        container.innerHTML = installed.map((v) => {
             const isDefault = v.id === defaultID;
-            const row = document.createElement("div");
-            row.className = "version-row";
-            row.innerHTML = `
-                <div class="version-row-main">
-                    <span class="version-row-name">
-                        ${escapeHtml(v.version)}
-                        ${v.isMono ? '<span class="badge">mono</span>' : ""}
-                        ${isDefault ? '<span class="badge badge-accent">default</span>' : ""}
-                    </span>
-                    <span class="muted">${escapeHtml(v.os)}/${escapeHtml(v.arch)} · ${formatBytes(v.sizeBytes)}</span>
-                </div>
-                <div class="version-row-actions">
-                    ${isDefault ? "" : `<button class="btn btn-sm" data-action="default">Set as default</button>`}
-                    <button class="btn btn-sm" data-action="remove">Remove</button>
+            const rel = this.state.releasesByTag.get(v.tagName);
+            return `
+                <div class="version-row">
+                    <div class="version-row-main">
+                        <span class="version-row-name">
+                            ${escapeHtml(v.tagName)}
+                            ${v.isMono ? '<span class="badge">.NET</span>' : ""}
+                            ${isDefault ? '<span class="badge badge-accent">default</span>' : ""}
+                        </span>
+                        <span class="muted">${escapeHtml(v.os)}/${escapeHtml(v.arch)} · ${formatBytes(v.sizeBytes)}</span>
+                    </div>
+                    <div class="version-row-actions">
+                        ${rel && rel.releaseNotesURL
+                            ? `<button class="btn btn-sm btn-link" data-action="notes" data-tag="${escapeHtml(v.tagName)}" type="button">Notes ↗</button>`
+                            : ""}
+                        ${isDefault ? "" : `<button class="btn btn-sm" data-action="default" data-id="${escapeHtml(v.id)}" type="button">Set as default</button>`}
+                        <button class="btn btn-sm btn-danger-ghost" data-action="remove" data-id="${escapeHtml(v.id)}" type="button">Remove</button>
+                    </div>
                 </div>`;
-            row.querySelector('[data-action="remove"]')?.addEventListener("click", () => this.removeVersion(v.id));
-            row.querySelector('[data-action="default"]')?.addEventListener("click", () => this.setDefault(v.id));
-            list.appendChild(row);
+        }).join("");
+    },
+
+    async onInstalledClick(e) {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn || this.state.busy) return;
+
+        switch (btn.dataset.action) {
+            case "notes":
+                await this.openNotes(btn.dataset.tag, "releaseNotesURL");
+                break;
+            case "default":
+                await this.setDefault(btn.dataset.id);
+                break;
+            case "remove":
+                await this.removeVersion(btn.dataset.id);
+                break;
         }
-        container.appendChild(list);
+    },
+
+    // --- Available catalog --------------------------------------------
+
+    visibleGroups() {
+        const query = this.state.query.trim().toLowerCase();
+        const matchesChannel = CHANNEL_FILTERS[this.state.channel] || CHANNEL_FILTERS.all;
+
+        const out = [];
+        for (const group of this.state.groups) {
+            const releases = (group.releases || []).filter((rel) =>
+                matchesChannel(rel.channel) &&
+                (!query || rel.tagName.toLowerCase().includes(query)));
+            if (releases.length) out.push({ ...group, releases });
+        }
+        return out;
+    },
+
+    isExpanded(series, index, searching) {
+        if (this.state.collapsed.has(series)) return false;
+        if (this.state.expanded.has(series)) return true;
+        if (searching) return true; // typing a filter means you want to see the hits
+        return index < DEFAULT_EXPANDED_GROUPS;
+    },
+
+    renderAvailable() {
+        const container = document.getElementById("available-versions-list");
+        if (!this.state.loaded) {
+            container.innerHTML = `<p class="muted">Loading available versions…</p>`;
+            return;
+        }
+
+        const groups = this.visibleGroups();
+        if (groups.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>No versions match this filter.</p>
+                </div>`;
+            return;
+        }
+
+        const searching = this.state.query.trim() !== "";
+        container.innerHTML = groups.map((group, i) => {
+            const open = this.isExpanded(group.series, i, searching);
+            const installedCount = group.releases
+                .filter((rel) => this.isInstalled(rel.tagName)).length;
+
+            return `
+                <section class="series-group${open ? " is-open" : ""}">
+                    <button class="series-header" type="button" data-action="toggle-series"
+                            data-series="${escapeHtml(group.series)}" aria-expanded="${open}">
+                        <span class="series-caret" aria-hidden="true">▶</span>
+                        <span class="series-name">${escapeHtml(group.series)}</span>
+                        <span class="badge channel-${escapeHtml(group.channel)}">${escapeHtml(group.channel)}</span>
+                        ${installedCount ? `<span class="badge badge-installed">${installedCount} installed</span>` : ""}
+                        <span class="series-count muted">${group.releases.length} ${group.releases.length === 1 ? "release" : "releases"}</span>
+                    </button>
+                    ${open ? `<div class="series-body">${group.releases.map((rel) => this.releaseRow(rel)).join("")}</div>` : ""}
+                </section>`;
+        }).join("");
+    },
+
+    releaseRow(rel) {
+        const tag = escapeHtml(rel.tagName);
+        const std = this.state.installedByKey.get(installedKey(rel.tagName, false));
+        const mono = this.state.installedByKey.get(installedKey(rel.tagName, true));
+        const hasStdAsset = (rel.assets || []).some((a) => !a.isMono);
+        const hasMonoAsset = (rel.assets || []).some((a) => a.isMono);
+
+        const variantButton = (installedVersion, hasAsset, label, isMono) => {
+            if (!hasAsset) return "";
+            if (installedVersion) {
+                return `<button class="btn btn-sm btn-danger-ghost" data-action="remove"
+                        data-id="${escapeHtml(installedVersion.id)}" type="button">Uninstall ${label}</button>`;
+            }
+            return `<button class="btn btn-sm${isMono ? "" : " btn-accent"}" data-action="install"
+                    data-tag="${tag}" data-mono="${isMono}" type="button">Install${isMono ? " .NET" : ""}</button>`;
+        };
+
+        return `
+            <div class="release-row${std || mono ? " is-installed" : ""}">
+                <div class="release-row-id">
+                    <span class="release-row-tag">${tag}</span>
+                    <span class="badge channel-${escapeHtml(rel.channel)}">${escapeHtml(rel.channel)}</span>
+                    ${std || mono ? '<span class="badge badge-installed">installed</span>' : ""}
+                </div>
+                <span class="release-row-date muted">${escapeHtml(formatDate(rel.publishedAt))}</span>
+                <div class="release-row-actions">
+                    ${rel.releaseNotesURL
+                        ? `<button class="btn btn-sm btn-link" data-action="notes" data-tag="${tag}" type="button">Notes ↗</button>`
+                        : ""}
+                    ${rel.changelogURL
+                        ? `<button class="btn btn-sm btn-link" data-action="changelog" data-tag="${tag}" type="button">Changelog ↗</button>`
+                        : ""}
+                    ${variantButton(std, hasStdAsset, "", false)}
+                    ${variantButton(mono, hasMonoAsset, ".NET", true)}
+                </div>
+            </div>`;
+    },
+
+    async onCatalogClick(e) {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn) return;
+
+        if (btn.dataset.action === "toggle-series") {
+            this.toggleSeries(btn.dataset.series);
+            return;
+        }
+        if (this.state.busy) return;
+
+        switch (btn.dataset.action) {
+            case "notes":
+                await this.openNotes(btn.dataset.tag, "releaseNotesURL");
+                break;
+            case "changelog":
+                await this.openNotes(btn.dataset.tag, "changelogURL");
+                break;
+            case "install":
+                await this.installVersion(btn.dataset.tag, btn.dataset.mono === "true");
+                break;
+            case "remove":
+                await this.removeVersion(btn.dataset.id);
+                break;
+        }
+    },
+
+    toggleSeries(series) {
+        const group = document.querySelector(`.series-header[data-series="${CSS.escape(series)}"]`);
+        const isOpen = group?.getAttribute("aria-expanded") === "true";
+        if (isOpen) {
+            this.state.expanded.delete(series);
+            this.state.collapsed.add(series);
+        } else {
+            this.state.collapsed.delete(series);
+            this.state.expanded.add(series);
+        }
+        this.renderAvailable();
+    },
+
+    setChannel(channel) {
+        this.state.channel = channel;
+        for (const chip of document.querySelectorAll(".available-toolbar .chip")) {
+            const active = chip.dataset.channel === channel;
+            chip.classList.toggle("is-active", active);
+            chip.setAttribute("aria-pressed", String(active));
+        }
+        this.renderAvailable();
+    },
+
+    isInstalled(tagName) {
+        return this.state.installedByKey.has(installedKey(tagName, false)) ||
+            this.state.installedByKey.has(installedKey(tagName, true));
+    },
+
+    // --- Actions ------------------------------------------------------
+
+    // Release notes and changelogs are handed to the OS browser rather than
+    // rendered in-app; the Go side allowlists the target host before
+    // opening anything.
+    async openNotes(tagName, field) {
+        const rel = this.state.releasesByTag.get(tagName);
+        const url = rel && rel[field];
+        if (!url) return;
+        try {
+            await api.openURL(url);
+        } catch (err) {
+            alert(`Couldn't open ${url}:\n${err}`);
+        }
+    },
+
+    async installVersion(tagName, isMono) {
+        this.setBusy(true);
+        this.showProgress(`Installing ${tagName}${isMono ? " (.NET)" : ""}…`);
+        try {
+            await api.installVersion(tagName, isMono);
+        } catch (err) {
+            this.hideProgress();
+            this.setBusy(false);
+            alert(`Install failed: ${err}`);
+        }
+        // On success, onInstallComplete (fired via the install_complete
+        // event) hides the banner and refreshes the lists.
     },
 
     async removeVersion(id) {
+        this.setBusy(true);
         try {
             await api.removeVersion(id);
         } catch (err) {
             alert(`Failed to remove version: ${err}`);
         }
+        this.setBusy(false);
         await this.refreshInstalled();
     },
 
@@ -85,66 +387,12 @@ const versionsView = {
         await this.refreshInstalled();
     },
 
-    async openBrowsePanel() {
-        const panel = document.getElementById("browse-panel");
-        const container = document.getElementById("available-versions-list");
-        panel.hidden = false;
-        container.innerHTML = `<p class="muted">Loading releases…</p>`;
-        try {
-            const releases = (await api.listAvailableVersions()) || [];
-            this.renderAvailable(container, releases);
-        } catch (err) {
-            container.innerHTML = `<p class="muted">Failed to load releases: ${escapeHtml(String(err))}</p>`;
-        }
+    setBusy(busy) {
+        this.state.busy = busy;
+        document.getElementById("view-versions").classList.toggle("is-busy", busy);
     },
 
-    closeBrowsePanel() {
-        document.getElementById("browse-panel").hidden = true;
-    },
-
-    renderAvailable(container, releases) {
-        if (releases.length === 0) {
-            container.innerHTML = `<p class="muted">No stable releases found.</p>`;
-            return;
-        }
-        container.innerHTML = "";
-        for (const rel of releases) {
-            const row = document.createElement("div");
-            row.className = "release-row";
-            row.innerHTML = `
-                <div class="release-row-header">
-                    <span class="release-row-tag">${escapeHtml(rel.tagName)}</span>
-                    <span class="muted">${formatDate(rel.publishedAt)}</span>
-                    <button class="btn btn-sm" data-action="toggle-notes" type="button">Release notes</button>
-                </div>
-                <div class="release-row-actions">
-                    <button class="btn btn-sm btn-accent" data-action="install-standard" type="button">Install</button>
-                    <button class="btn btn-sm" data-action="install-mono" type="button">Install (Mono)</button>
-                </div>
-                <pre class="release-changelog" hidden>${escapeHtml(rel.bodyMD || "(no release notes)")}</pre>`;
-            container.appendChild(row);
-
-            row.querySelector('[data-action="toggle-notes"]').addEventListener("click", () => {
-                const notes = row.querySelector(".release-changelog");
-                notes.hidden = !notes.hidden;
-            });
-            row.querySelector('[data-action="install-standard"]').addEventListener("click", () => this.installVersion(rel, false));
-            row.querySelector('[data-action="install-mono"]').addEventListener("click", () => this.installVersion(rel, true));
-        }
-    },
-
-    async installVersion(rel, isMono) {
-        this.closeBrowsePanel();
-        this.showProgress(`Installing ${rel.tagName}${isMono ? " (mono)" : ""}…`);
-        try {
-            await api.installVersion(rel, isMono);
-        } catch (err) {
-            this.hideProgress();
-            alert(`Install failed: ${err}`);
-        }
-        // On success, onInstallComplete (fired via the install_complete
-        // event) hides the banner and refreshes the list.
-    },
+    // --- Progress banner ----------------------------------------------
 
     showProgress(label) {
         document.getElementById("install-progress-label").textContent = label;
@@ -174,6 +422,13 @@ const versionsView = {
 
     async onInstallComplete() {
         this.hideProgress();
+        this.setBusy(false);
         await this.refreshInstalled();
     },
 };
+
+// installedKey pairs a release tag with its standard/mono variant, since
+// both can be installed side by side from the same release.
+function installedKey(tagName, isMono) {
+    return `${tagName}|${isMono ? "mono" : "standard"}`;
+}

@@ -10,11 +10,14 @@ const api = {
     listAvailableVersions() {
         return window.go.main.App.ListAvailableVersions();
     },
+    refreshAvailableVersions() {
+        return window.go.main.App.RefreshAvailableVersions();
+    },
     listInstalledVersions() {
         return window.go.main.App.ListInstalledVersions();
     },
-    installVersion(release, isMono) {
-        return window.go.main.App.InstallVersion(release, isMono);
+    installVersion(tagName, isMono) {
+        return window.go.main.App.InstallVersion(tagName, isMono);
     },
     removeVersion(id) {
         return window.go.main.App.RemoveVersion(id);
@@ -56,5 +59,8 @@ const api = {
     },
     openDataDir() {
         return window.go.main.App.OpenDataDir();
+    },
+    openURL(url) {
+        return window.go.main.App.OpenURL(url);
     },
 };

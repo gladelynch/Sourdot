@@ -27,7 +27,7 @@
             <section id="view-versions" class="view is-active" aria-labelledby="view-versions-heading">
                 <header class="view-header">
                     <h1 id="view-versions-heading">Versions</h1>
-                    <button class="btn btn-accent" id="browse-versions-btn" type="button">Browse available…</button>
+                    <button class="btn" id="refresh-versions-btn" type="button">Refresh</button>
                 </header>
 
                 <div id="install-progress" class="progress-banner" role="status" hidden>
@@ -37,23 +37,29 @@
                     </div>
                 </div>
 
-                <div id="installed-versions-list">
-                    <div class="empty-state">
-                        <p>No Godot versions installed yet.</p>
-                        <p class="muted">Click "Browse available…" to install one.</p>
+                <section class="installed-shelf" aria-labelledby="installed-heading">
+                    <div class="section-bar">
+                        <h2 id="installed-heading">Installed</h2>
+                        <span class="muted" id="installed-count"></span>
                     </div>
+                    <div id="installed-versions-list"></div>
+                </section>
+
+                <div class="available-toolbar">
+                    <div class="chip-group" role="group" aria-label="Filter by release channel">
+                        <button class="chip is-active" data-channel="all" type="button" aria-pressed="true">All</button>
+                        <button class="chip" data-channel="stable" type="button" aria-pressed="false">Stable</button>
+                        <button class="chip" data-channel="prerelease" type="button" aria-pressed="false">RC / Beta</button>
+                        <button class="chip" data-channel="dev" type="button" aria-pressed="false">Dev</button>
+                    </div>
+                    <input id="version-search" class="toolbar-search" type="search" placeholder="Filter by version…"
+                        aria-label="Filter available versions" autocomplete="off" />
+                </div>
+
+                <div id="available-versions-list" aria-live="polite">
+                    <p class="muted">Loading available versions…</p>
                 </div>
             </section>
-
-            <div id="browse-panel" class="modal-overlay" hidden>
-                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="browse-panel-heading">
-                    <header class="modal-header">
-                        <h2 id="browse-panel-heading">Browse available versions</h2>
-                        <button class="btn btn-sm" id="browse-panel-close" type="button">Close</button>
-                    </header>
-                    <div id="available-versions-list" class="modal-body"></div>
-                </div>
-            </div>
 
             <section id="view-projects" class="view" aria-labelledby="view-projects-heading" hidden>
                 <header class="view-header">

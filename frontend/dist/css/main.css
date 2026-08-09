@@ -197,26 +197,127 @@ body {
     transition: width 150ms ease-out;
 }
 
-/* --- Version / release rows --- */
-.version-list,
-.release-row + .release-row {
-    margin-top: var(--space-2);
+/* --- Channel badges --- */
+.channel-stable {
+    background: rgba(79, 209, 139, 0.16);
+    color: var(--success);
 }
 
-.version-row,
-.release-row {
-    background: var(--bg-1);
+.channel-rc {
+    background: rgba(110, 168, 254, 0.16);
+    color: var(--accent);
+}
+
+.channel-beta,
+.channel-alpha {
+    background: rgba(242, 184, 114, 0.16);
+    color: var(--warning);
+}
+
+.channel-dev {
+    background: var(--bg-3);
+    color: var(--fg-muted);
+}
+
+.badge-installed {
+    background: rgba(79, 209, 139, 0.16);
+    color: var(--success);
+}
+
+/* --- Installed shelf: pinned above the catalog --- */
+.installed-shelf {
+    margin-bottom: var(--space-5);
+}
+
+.section-bar {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.section-bar h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-secondary);
+    margin: 0;
+}
+
+/* --- Catalog toolbar --- */
+.available-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+    /* Opaque, and spanning the view's full width, so catalog rows scroll
+       cleanly underneath it rather than showing through. */
+    padding: var(--space-3) 0;
+    background: var(--bg-0);
+    border-bottom: 1px solid var(--border);
+}
+
+.chip-group {
+    display: flex;
+    gap: var(--space-1);
+}
+
+.chip {
+    font: inherit;
+    font-size: 12px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: 999px;
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
-    margin-bottom: var(--space-2);
+    background: transparent;
+    color: var(--fg-secondary);
+    cursor: pointer;
 }
 
+.chip:hover {
+    background: var(--bg-2);
+    color: var(--fg-primary);
+}
+
+.chip.is-active {
+    background: var(--bg-3);
+    border-color: var(--border-strong);
+    color: var(--fg-primary);
+    font-weight: 600;
+}
+
+.toolbar-search {
+    flex: 1;
+    max-width: 260px;
+    margin-left: auto;
+    font: inherit;
+    font-size: 13px;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-1);
+    color: var(--fg-primary);
+}
+
+.toolbar-search:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* --- Version rows (installed shelf) --- */
 .version-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
 }
 
 .version-row-main {
@@ -227,46 +328,155 @@ body {
 
 .version-row-name {
     font-weight: 600;
+    font-family: var(--font-mono);
 }
 
 .version-row-actions {
     display: flex;
+    align-items: center;
     gap: var(--space-2);
     flex-shrink: 0;
 }
 
-.release-row-header {
+/* --- Series groups --- */
+.series-group {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    margin-bottom: var(--space-2);
+    overflow: hidden;
+}
+
+.series-group.is-open {
+    border-color: var(--border-strong);
+}
+
+.series-header {
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    background: transparent;
+    border: none;
+    color: var(--fg-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.series-header:hover {
+    background: var(--bg-2);
+}
+
+.series-caret {
+    color: var(--fg-muted);
+    font-size: 10px;
+    transition: transform 120ms ease-out;
+}
+
+.series-group.is-open .series-caret {
+    transform: rotate(90deg);
+}
+
+.series-name {
+    font-weight: 600;
+    font-family: var(--font-mono);
+    min-width: 56px;
+}
+
+.series-count {
+    margin-left: auto;
+}
+
+.series-body {
+    border-top: 1px solid var(--border);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5);
+}
+
+/* --- Release rows (catalog) --- */
+.release-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+}
+
+.release-row:hover {
+    background: var(--bg-2);
+}
+
+.release-row.is-installed {
+    background: rgba(79, 209, 139, 0.05);
+}
+
+.release-row-id {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 240px;
 }
 
 .release-row-tag {
-    font-weight: 600;
     font-family: var(--font-mono);
+    font-size: 13px;
 }
 
-.release-row-header .btn {
-    margin-left: auto;
+.release-row-date {
+    white-space: nowrap;
 }
 
 .release-row-actions {
     display: flex;
+    align-items: center;
     gap: var(--space-2);
-    margin-top: var(--space-3);
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
-.release-changelog {
-    margin-top: var(--space-3);
-    padding: var(--space-3);
-    background: var(--bg-0);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    white-space: pre-wrap;
-    max-height: 240px;
-    overflow-y: auto;
+/* Buttons only meaningful while hovering a row stay dim until then, so a
+   long list doesn't read as a wall of controls. */
+.release-row .btn-link {
+    opacity: 0.65;
+}
+
+.release-row:hover .btn-link,
+.release-row .btn-link:focus-visible {
+    opacity: 1;
+}
+
+.btn-link {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg-secondary);
+    padding: var(--space-1) var(--space-2);
+}
+
+.btn-link:hover {
+    background: var(--bg-3);
+    color: var(--fg-primary);
+}
+
+.btn-danger-ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--fg-secondary);
+}
+
+.btn-danger-ghost:hover {
+    background: rgba(242, 114, 114, 0.14);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* An install or removal is in flight: freeze the lists so a second click
+   can't race it, while leaving the progress banner readable. */
+.view.is-busy .series-body,
+.view.is-busy .installed-shelf,
+.view.is-busy .available-toolbar {
+    opacity: 0.55;
+    pointer-events: none;
 }
 
 .btn-sm {
@@ -298,6 +508,17 @@ body {
     gap: var(--space-3);
     flex: 1;
     min-width: 240px;
+}
+
+.project-thumb {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    object-fit: contain;
+    background: var(--bg-0);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 2px;
 }
 
 .project-row-info {
@@ -348,14 +569,36 @@ body {
     color: var(--fg-primary);
 }
 
-.version-select {
+/* The closed part of a <select> keeps its native chrome in WebKitGTK -- it
+ * paints the host GTK theme's background under our foreground colour, which
+ * came out as an unreadable white box in the desktop build even though
+ * Chrome honoured these declarations. Resetting the appearance and drawing
+ * our own chevron makes the two builds render identically. */
+.version-select,
+#default-version-select {
+    -webkit-appearance: none;
+    appearance: none;
     font: inherit;
-    font-size: 12px;
-    background: var(--bg-0);
+    background-color: var(--bg-0);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23b4bac2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 10px 6px;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
     color: var(--fg-primary);
-    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+}
+
+.version-select option,
+#default-version-select option {
+    background-color: var(--bg-1);
+    color: var(--fg-primary);
+}
+
+.version-select {
+    font-size: 12px;
+    padding: var(--space-1) var(--space-5) var(--space-1) var(--space-2);
+    background-position: right var(--space-2) center;
 }
 
 .project-row-actions {
@@ -368,50 +611,6 @@ body {
 .project-row-status {
     flex-basis: 100%;
     font-size: 12px;
-}
-
-/* --- Modal --- */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-}
-
-.modal-overlay[hidden] {
-    display: none;
-}
-
-.modal {
-    width: min(640px, 90vw);
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-1);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-}
-
-.modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--border);
-}
-
-.modal-header h2 {
-    font-size: 16px;
-    margin: 0;
-}
-
-.modal-body {
-    padding: var(--space-4) var(--space-5);
-    overflow-y: auto;
 }
 
 .settings-panel {
@@ -457,7 +656,12 @@ body {
     white-space: nowrap;
 }
 
-#default-version-select,
+#default-version-select {
+    font-size: 13px;
+    padding: var(--space-2) var(--space-6) var(--space-2) var(--space-3);
+    background-position: right var(--space-3) center;
+}
+
 #github-token-input {
     font: inherit;
     font-size: 13px;

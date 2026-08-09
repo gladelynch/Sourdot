@@ -59,19 +59,24 @@ const projectsView = {
         const versionOptions = this.installedVersions
             .map((v) => {
                 const selected = v.id === p.pinnedVersionId ? "selected" : "";
-                const label = `${v.version}${v.isMono ? " (mono)" : ""}`;
-                return `<option value="${escapeHtml(v.id)}" ${selected}>${escapeHtml(label)}</option>`;
+                return `<option value="${escapeHtml(v.id)}" ${selected}>${escapeHtml(installedLabel(v))}</option>`;
             })
             .join("");
 
+        const versionLabel = p.detectedVersionLabel || p.detectedVersion;
+        const thumb = p.thumbnail
+            ? `<img class="project-thumb" src="${p.thumbnail}" alt="" />`
+            : "";
+
         row.innerHTML = `
             <div class="project-row-main">
+                ${thumb}
                 <button class="star-btn ${p.favorite ? "is-favorite" : ""}" data-action="favorite" type="button" aria-pressed="${p.favorite}" aria-label="${p.favorite ? "Remove from favorites" : "Add to favorites"}">★</button>
                 <div class="project-row-info">
                     <div class="project-row-name">
                         ${escapeHtml(p.name)}
                         ${p.usesCSharp ? '<span class="badge">C#</span>' : ""}
-                        ${p.detectedVersion ? `<span class="badge">Godot ${escapeHtml(p.detectedVersion)}</span>` : ""}
+                        ${versionLabel ? `<span class="badge">Godot ${escapeHtml(versionLabel)}</span>` : ""}
                         ${p.missing ? '<span class="badge badge-danger">missing</span>' : ""}
                     </div>
                     <div class="muted project-row-path">${escapeHtml(p.path)}</div>

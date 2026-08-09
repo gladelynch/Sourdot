@@ -39,9 +39,8 @@ const settingsView = {
 
         const options = installed
             .map((v) => {
-                const label = `${v.version}${v.isMono ? " (mono)" : ""}`;
                 const selected = v.id === defaultID ? "selected" : "";
-                return `<option value="${escapeHtml(v.id)}" ${selected}>${escapeHtml(label)}</option>`;
+                return `<option value="${escapeHtml(v.id)}" ${selected}>${escapeHtml(installedLabel(v))}</option>`;
             })
             .join("");
         select.innerHTML = `<option value="">(none)</option>${options}`;

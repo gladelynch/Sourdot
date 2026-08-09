@@ -4,6 +4,13 @@
  * Keep this file to token definitions only; component styles live in main.css.
  */
 :root {
+    /* The UI is dark-only, so tell the engine that up front. Without this
+     * WebKitGTK (the desktop webview) paints form controls from the host
+     * GTK theme's light palette while the text inherits our light
+     * foreground -- white-on-white select boxes on the desktop build that
+     * Chrome never showed. */
+    color-scheme: dark;
+
     /* Layered dark surfaces, back to front */
     --bg-0: #0e1013;
     --bg-1: #15181c;
