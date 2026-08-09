@@ -71,7 +71,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	a.versionManager = core.NewVersionManager(db, a, versionsDir, settings.GitHubToken)
-	a.projectManager = core.NewProjectManager(db, a)
+	a.projectManager = core.NewProjectManager(db, a, a.versionManager)
 }
 
 // domReady is called after front-end resources have been loaded.
