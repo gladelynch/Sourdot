@@ -10,15 +10,17 @@ import (
 	"testing"
 
 	"github.com/gladelynch/sourdot/internal/core"
+	"github.com/gladelynch/sourdot/internal/project"
 	"github.com/gladelynch/sourdot/internal/store"
 )
 
-// TestOpenProject_EndToEnd exercises the full M3 acceptance flow: add a
-// real project folder, confirm its auto-detected metadata, pin it (via
-// .sourdot-version) to a version that isn't installed yet, open it, and
-// confirm that auto-installs the missing version and then launches the
-// editor. Network-dependent and starts a real (briefly-lived) Godot
-// process, so it's gated the same way as the version-manager tests:
+// TestOpenProject_EndToEnd exercises the full acceptance flow: add a real
+// project folder, confirm the metadata parsed out of it, pin it (via
+// .sourdot-version) to a version that isn't installed yet, confirm Open
+// refuses rather than substituting whatever else is around, then install
+// the version it asked for and open it for real. Network-dependent and
+// starts a real (briefly-lived) Godot process, so it's gated the same way
+// as the version-manager tests:
 //
 //	go test -tags integration ./internal/core/... -run OpenProject -v
 func TestOpenProject_EndToEnd(t *testing.T) {
@@ -86,20 +88,39 @@ config/features=PackedStringArray("4.2", "Forward Plus")
 		t.Fatal(err)
 	}
 
-	spec, source, ok := pm.ResolveVersionSpec(proj)
-	if !ok || spec.Version != targetVersion || source != ".sourdot-version" {
-		t.Fatalf("ResolveVersionSpec = %+v, %q, %v; want version %s from .sourdot-version", spec, source, ok, targetVersion)
+	// versionsDir is empty, so the pinned version isn't installed yet.
+	// Resolution has to say exactly that, and Open has to refuse -- the
+	// whole point of dropping the old auto-detect is that nothing gets
+	// launched in a version the project didn't ask for, and nothing gets
+	// downloaded without the user saying so.
+	res := pm.ResolveVersion(proj)
+	if res.Status != project.StatusMissing || res.Source != ".sourdot-version" {
+		t.Fatalf("ResolveVersion = %+v; want status %q from .sourdot-version", res, project.StatusMissing)
+	}
+	if res.Version != targetVersion {
+		t.Fatalf("resolved version = %q, want %s", res.Version, targetVersion)
+	}
+	if _, _, err := pm.OpenProject(ctx, proj.ID); err == nil {
+		t.Fatal("OpenProject succeeded with no version installed; it must refuse instead")
 	}
 
-	// versionsDir is empty, so this must exercise the auto-install path.
+	// The explicit install step the UI offers once the user confirms.
+	installed, err := pm.InstallForProject(ctx, proj.ID)
+	if err != nil {
+		t.Fatalf("InstallForProject: %v", err)
+	}
+	if installed.Version != targetVersion {
+		t.Fatalf("installed version = %s, want %s", installed.Version, targetVersion)
+	}
+
 	iv, cmd, err := pm.OpenProject(ctx, proj.ID)
 	if err != nil {
 		t.Fatalf("OpenProject: %v", err)
 	}
 	if iv.Version != targetVersion {
-		t.Fatalf("installed version = %s, want %s", iv.Version, targetVersion)
+		t.Fatalf("launched version = %s, want %s", iv.Version, targetVersion)
 	}
-	t.Logf("auto-installed and launched %s (pid %d)", iv.ID, cmd.Process.Pid)
+	t.Logf("installed and launched %s (pid %d)", iv.ID, cmd.Process.Pid)
 
 	// Don't let a real editor window linger in the user's session --
 	// confirm it started, then kill it immediately.

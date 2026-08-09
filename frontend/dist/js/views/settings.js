@@ -2,10 +2,13 @@
 // GitHub PAT (raises the 60/hr unauthenticated API rate limit), the data
 // directory (with a reveal-in-file-manager action), and basic backend
 // status/about info.
+const PROJECT_REPO_URL = "https://github.com/gladelynch/Sourdot";
+
 const settingsView = {
     async init() {
         document.getElementById("github-token-save").addEventListener("click", () => this.saveToken());
         document.getElementById("reveal-data-dir-btn").addEventListener("click", () => this.revealDataDir());
+        document.getElementById("project-repo-btn").addEventListener("click", () => this.openRepo());
 
         await Promise.all([this.loadStatus(), this.loadDefaultVersion(), this.loadTokenStatus()]);
     },
@@ -72,6 +75,16 @@ const settingsView = {
             await this.loadTokenStatus();
         } catch (err) {
             alert(`Failed to save token: ${err}`);
+        }
+    },
+
+    // Handed to the OS browser rather than navigated to in-app; the Go side
+    // allowlists the host before opening anything.
+    async openRepo() {
+        try {
+            await api.openURL(PROJECT_REPO_URL);
+        } catch (err) {
+            alert(`Couldn't open ${PROJECT_REPO_URL}:\n${err}`);
         }
     },
 

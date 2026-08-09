@@ -27,6 +27,21 @@ function installedLabel(v) {
     return `${v.tagName || v.version}${v.isMono ? " (.NET)" : ""}`;
 }
 
+// declaredLabel names the version a project records for itself, and does it
+// as a series rather than as an exact version. project.godot's
+// config/features holds "4.8" with no build label, and that means "the most
+// recent 4.8" -- stable once the series ships, the latest pre-release until
+// then. "4.8.x" is the honest rendering of that: a plain "4.8" would claim
+// a precision the file doesn't have and hide, for the same reason as above,
+// that 4.8-dev3, 4.8-beta1, 4.8-rc1 and 4.8-stable are four different
+// builds. Godot 3 projects record no feature version at all, leaving only
+// the major from config_version. Returns "" when even that is unknown.
+function declaredLabel(p) {
+    if (p.declaredVersion) return `${p.declaredVersion}.x`;
+    if (p.detectedVersion) return `${p.detectedVersion}.x`;
+    return "";
+}
+
 function formatDate(iso) {
     if (!iso) return "";
     try {

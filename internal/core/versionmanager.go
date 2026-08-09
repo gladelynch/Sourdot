@@ -227,6 +227,10 @@ func (vm *VersionManager) InstallVersion(ctx context.Context, rel release.Releas
 		SizeBytes:   size,
 	}
 	if err := vm.db.PutInstalledVersion(iv); err != nil {
+		// Without this the extracted tree survives an unrecorded install:
+		// nothing lists it, nothing can uninstall it, and the Stat check
+		// above rejects every later attempt to install the same version.
+		_ = os.RemoveAll(finalDir)
 		return install.InstalledVersion{}, err
 	}
 
@@ -236,18 +240,58 @@ func (vm *VersionManager) InstallVersion(ctx context.Context, rel release.Releas
 
 // RemoveVersion deletes an installed version's on-disk files and its
 // store record.
+//
+// It clears both the canonical directory for the ID and whatever path the
+// record happened to be written with, because os.RemoveAll treats "this
+// path doesn't exist" as success: a record pointing somewhere stale would
+// otherwise delete nothing, drop the record anyway, and leave the real
+// folder orphaned -- invisible in the UI, still eating disk, and enough to
+// make a reinstall fail with "already installed". A missing record is
+// handled the same way, so a half-removed version can always be cleaned up
+// by pressing Uninstall again.
 func (vm *VersionManager) RemoveVersion(id string) error {
 	iv, ok, err := vm.db.GetInstalledVersion(id)
 	if err != nil {
 		return err
 	}
-	if !ok {
+
+	canonical := install.InstallDir(vm.versionsDir, id)
+	targets := []string{canonical}
+	if recorded := recordedInstallDir(iv, id); recorded != "" && recorded != canonical {
+		targets = append(targets, recorded)
+	}
+
+	removedAny := false
+	for _, dir := range targets {
+		if _, statErr := os.Lstat(dir); statErr == nil {
+			removedAny = true
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("removing %s: %w", dir, err)
+		}
+	}
+
+	if !ok && !removedAny {
 		return fmt.Errorf("version %s is not installed", id)
 	}
-	if err := os.RemoveAll(iv.InstallPath); err != nil {
-		return err
-	}
 	return vm.db.DeleteInstalledVersion(id)
+}
+
+// recordedInstallDir returns the install path stored on iv, but only when
+// it still looks like a directory this app created for that exact ID.
+// InstallDir always names the leaf after the synthetic ID, so requiring
+// that keeps a blank or truncated field -- os.RemoveAll("") and
+// os.RemoveAll("/home/you") are both perfectly happy to run -- from
+// pointing the delete at something that isn't ours.
+func recordedInstallDir(iv install.InstalledVersion, id string) string {
+	if iv.InstallPath == "" || !filepath.IsAbs(iv.InstallPath) {
+		return ""
+	}
+	dir := filepath.Clean(iv.InstallPath)
+	if filepath.Base(dir) != id {
+		return ""
+	}
+	return dir
 }
 
 func (vm *VersionManager) emit(evt Event) {

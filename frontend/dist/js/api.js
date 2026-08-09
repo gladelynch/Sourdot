@@ -44,8 +44,11 @@ const api = {
     setTags(id, tags) {
         return window.go.main.App.SetTags(id, tags);
     },
-    setPinnedVersion(id, versionId) {
-        return window.go.main.App.SetPinnedVersion(id, versionId);
+    setProjectVersion(id, mode, versionId) {
+        return window.go.main.App.SetProjectVersion(id, mode, versionId || "");
+    },
+    installForProject(id) {
+        return window.go.main.App.InstallForProject(id);
     },
     openProject(id) {
         return window.go.main.App.OpenProject(id);

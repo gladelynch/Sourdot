@@ -504,28 +504,52 @@ body {
 
 .project-row-main {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: var(--space-3);
     flex: 1;
     min-width: 240px;
 }
 
+/* The icon reads as the row's leading edge, so it stands as tall as the text
+   block beside it rather than as a small chip floating at the top. The square
+   is a fixed size and .project-row-info carries the matching min-height:
+   sizing it off the text block instead (stretch + aspect-ratio) doesn't work
+   in a flex row -- the stretched height never transfers back to the width. */
 .project-thumb {
-    width: 36px;
-    height: 36px;
+    width: var(--thumb-size);
+    height: var(--thumb-size);
     flex-shrink: 0;
-    object-fit: contain;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     background: var(--bg-0);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 2px;
+    padding: 4px;
+}
+
+.project-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Projects whose icon can't be read still get the box, so every name in the
+   list starts at the same x. */
+.project-thumb.is-empty {
+    color: var(--border-strong);
+    font-size: 18px;
+    line-height: 1;
 }
 
 .project-row-info {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 4px;
     flex: 1;
+    min-height: var(--thumb-size);
 }
 
 .project-row-name {
@@ -541,14 +565,23 @@ body {
 .star-btn {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1;
     color: var(--border-strong);
     cursor: pointer;
-    padding: 2px;
+    padding: var(--space-1);
+    /* Sits with the row's controls, but it toggles rather than acts -- the
+       extra gap keeps it from reading as a third button. */
+    margin-left: var(--space-1);
+    border-radius: var(--radius-sm);
 }
 
-.star-btn.is-favorite {
+.star-btn:hover {
+    color: var(--fg-secondary);
+}
+
+.star-btn.is-favorite,
+.star-btn.is-favorite:hover {
     color: var(--accent);
 }
 
@@ -611,6 +644,78 @@ body {
 .project-row-status {
     flex-basis: 100%;
     font-size: 12px;
+}
+
+/* The in-row install bar. Same parts as the Versions page banner, stacked
+   tighter so a row that's fetching a version doesn't jump in height. */
+.row-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+}
+
+/* Between the click and the first byte there's a catalog fetch to get
+   through, so the bar sweeps rather than sitting at a static 0% -- which
+   reads as stuck. Replaced by the real fill on the first progress event. */
+.progress-bar.is-indeterminate .progress-bar-fill {
+    width: 35%;
+    animation: progress-sweep 1.2s ease-in-out infinite;
+}
+
+@keyframes progress-sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .progress-bar.is-indeterminate .progress-bar-fill {
+        animation: none;
+        width: 100%;
+        opacity: 0.4;
+    }
+}
+
+/* An install started from this row is in flight: its controls freeze so a
+   second click can't start the same download twice, while the bar above
+   stays legible. */
+.project-row.is-installing .project-row-actions,
+.project-row.is-installing .project-row-note {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+/* The standing version note under a project row. Blocking (the version it
+   needs isn't installed, or none has been chosen) reads as an error since
+   Open won't work until it's dealt with; warning (it will open, but not in
+   the version the project declares) reads as a caution. */
+.project-row-note {
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: 12px;
+    line-height: 1.4;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+}
+
+.project-row-note.is-blocking {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.project-row-note.is-warning {
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+
+.project-row-note button {
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .settings-panel {
@@ -691,4 +796,10 @@ body {
     margin: 0;
     font-family: var(--font-mono);
     font-size: 12px;
+}
+
+/* Pull the button's own padding back so its label lines up with the
+   plain-text values above it. */
+.about-list .btn-link {
+    margin: calc(var(--space-1) * -1) calc(var(--space-2) * -1);
 }

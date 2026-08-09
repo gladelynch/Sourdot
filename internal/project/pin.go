@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -20,6 +21,50 @@ type PinSpec struct {
 	// Empty for the plain-text pin files below, which only ever name a
 	// version, and for anything else that can't identify a single build.
 	TagName string
+
+	// MinorOnly marks a target that names a major.minor series rather than
+	// one build: project.godot's config/features records "4.8" and nothing
+	// finer -- no patch, no build label -- so a target read from it has to
+	// match any 4.8.x.
+	//
+	// What such a target means is "the most recent 4.8": once the series
+	// has shipped that's 4.8-stable and then its patch releases, and until
+	// it has, it's the latest pre-release, because that's the only 4.8 in
+	// existence. Resolution ranks candidates accordingly (see core's
+	// seriesPrefers). Set only by the config/features tier; the pin files
+	// and the UI's own modes all name something exact.
+	MinorOnly bool
+}
+
+// SeriesSpec builds the target a project declares in its own settings,
+// from a config/features version like "4.3". ok is false if declared isn't
+// a parseable major.minor, which is treated the same as declaring nothing
+// at all rather than being coerced into a target that might match the
+// wrong series.
+func SeriesSpec(declared string, isMono bool) (PinSpec, bool) {
+	if _, _, ok := MajorMinor(declared); !ok {
+		return PinSpec{}, false
+	}
+	return PinSpec{Version: declared, IsMono: isMono, MinorOnly: true}, true
+}
+
+// MajorMinor splits a version string's first two components. Tolerates a
+// third ("4.3.1") so it can be applied to exact versions too, and rejects
+// anything else -- a single "4" carries no series, only a family.
+func MajorMinor(v string) (major, minor int, ok bool) {
+	parts := strings.Split(strings.TrimSpace(v), ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return 0, 0, false
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, false
+	}
+	minor, err = strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, 0, false
+	}
+	return major, minor, true
 }
 
 // ParsePinValue parses a single pin value like "4.2.1" or "4.2.1-mono".
