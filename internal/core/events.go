@@ -5,9 +5,9 @@ package core
 // Wails runtime.EventsEmit calls; a future CLI/TUI (backlog) could instead
 // print them or ignore them entirely -- core never imports Wails.
 type Event struct {
-	Type string         // e.g. "download_progress", "install_complete"
-	ID   string         // the InstalledVersion or Project ID this event is about
-	Data map[string]any // event-specific payload
+	Type string         `json:"type"` // e.g. "download_progress", "install_complete"
+	ID   string         `json:"id"`   // the InstalledVersion or Project ID this event is about
+	Data map[string]any `json:"data"` // event-specific payload
 }
 
 // EventSink receives Events emitted by core operations. Implemented by

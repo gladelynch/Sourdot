@@ -1,5 +1,5 @@
-// App shell: tab switching between the three top-level views, then hands
-// off to each view's own init().
+// App shell: tab switching between the three top-level views, wires up the
+// Wails runtime event bridge once, then hands off to each view's init().
 document.addEventListener("DOMContentLoaded", () => {
     const navItems = document.querySelectorAll(".nav-item[data-view]");
     const viewEls = document.querySelectorAll(".view");
@@ -12,6 +12,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 v.hidden = v.id !== `view-${target}`;
             });
         });
+    });
+
+    // core.Event{Type, ID, Data} is emitted with the Wails event name equal
+    // to its own Type, so each of these is a 1:1 passthrough into our
+    // internal pub/sub topic of the same name (see js/events.js).
+    ["download_progress", "checksum_verified", "install_complete"].forEach((name) => {
+        events.bindRuntimeEvent(name, name);
     });
 
     versionsView.init();

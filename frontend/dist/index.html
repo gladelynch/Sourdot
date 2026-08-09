@@ -26,11 +26,29 @@
                     <h1 id="view-versions-heading">Versions</h1>
                     <button class="btn btn-accent" id="browse-versions-btn" type="button">Browse available…</button>
                 </header>
-                <div class="empty-state">
-                    <p>No Godot versions installed yet.</p>
-                    <p class="muted">Version install/management ships in M1–M2.</p>
+
+                <div id="install-progress" class="progress-banner" hidden>
+                    <div class="progress-banner-label" id="install-progress-label">Installing…</div>
+                    <div class="progress-bar"><div class="progress-bar-fill" id="install-progress-fill"></div></div>
+                </div>
+
+                <div id="installed-versions-list">
+                    <div class="empty-state">
+                        <p>No Godot versions installed yet.</p>
+                        <p class="muted">Click "Browse available…" to install one.</p>
+                    </div>
                 </div>
             </section>
+
+            <div id="browse-panel" class="modal-overlay" hidden>
+                <div class="modal">
+                    <header class="modal-header">
+                        <h2>Browse available versions</h2>
+                        <button class="btn btn-sm" id="browse-panel-close" type="button">Close</button>
+                    </header>
+                    <div id="available-versions-list" class="modal-body"></div>
+                </div>
+            </div>
 
             <section id="view-projects" class="view" aria-labelledby="view-projects-heading" hidden>
                 <header class="view-header">
@@ -59,6 +77,7 @@
         </main>
     </div>
 
+    <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
     <script src="js/events.js"></script>
     <script src="js/views/versions.js"></script>

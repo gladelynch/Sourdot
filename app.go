@@ -8,6 +8,8 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/gladelynch/godotvm/internal/core"
+	"github.com/gladelynch/godotvm/internal/godot/install"
+	"github.com/gladelynch/godotvm/internal/godot/release"
 	"github.com/gladelynch/godotvm/internal/platform"
 	"github.com/gladelynch/godotvm/internal/store"
 )
@@ -105,4 +107,48 @@ func (a *App) Ping() PingResult {
 		SchemaVersion: store.SchemaVersion,
 		DataDir:       a.dataDir,
 	}
+}
+
+// ListAvailableVersions fetches stable Godot releases from GitHub.
+func (a *App) ListAvailableVersions() ([]release.Release, error) {
+	return a.versionManager.ListAvailable(a.ctx)
+}
+
+// ListInstalledVersions returns every version currently installed on disk.
+func (a *App) ListInstalledVersions() ([]install.InstalledVersion, error) {
+	return a.versionManager.ListInstalled()
+}
+
+// InstallVersion downloads and installs rel's asset matching this host's
+// platform, in the requested standard/mono variant. Emits
+// download_progress/checksum_verified/install_complete events while it
+// runs, which the Versions view uses to drive its progress bar.
+func (a *App) InstallVersion(rel release.Release, isMono bool) (install.InstalledVersion, error) {
+	return a.versionManager.InstallVersion(a.ctx, rel, isMono)
+}
+
+// RemoveVersion deletes an installed version's files and its store record.
+func (a *App) RemoveVersion(id string) error {
+	return a.versionManager.RemoveVersion(id)
+}
+
+// GetDefaultVersion returns the InstalledVersion.ID used to resolve
+// unpinned projects, or "" if none is set yet.
+func (a *App) GetDefaultVersion() (string, error) {
+	settings, err := store.LoadSettings(a.dataDir)
+	if err != nil {
+		return "", err
+	}
+	return settings.DefaultVersionID, nil
+}
+
+// SetDefaultVersion sets the InstalledVersion.ID used to resolve unpinned
+// projects.
+func (a *App) SetDefaultVersion(id string) error {
+	settings, err := store.LoadSettings(a.dataDir)
+	if err != nil {
+		settings = store.DefaultSettings()
+	}
+	settings.DefaultVersionID = id
+	return store.SaveSettings(a.dataDir, settings)
 }

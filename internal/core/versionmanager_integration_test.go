@@ -4,14 +4,17 @@ package core_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/gladelynch/godotvm/internal/core"
+	"github.com/gladelynch/godotvm/internal/godot/release"
 	"github.com/gladelynch/godotvm/internal/store"
 )
 
@@ -135,6 +138,70 @@ func TestInstallVersion_Mono(t *testing.T) {
 			t.Fatalf("running --version: %v\n%s", err, out)
 		}
 		t.Logf("--version output: %s", out)
+	}
+
+	if err := vm.RemoveVersion(iv.ID); err != nil {
+		t.Fatalf("RemoveVersion: %v", err)
+	}
+}
+
+// TestReleaseJSONRoundTrip_ThenInstall exercises the specific risk in M2's
+// App.InstallVersion(rel release.Release, isMono bool) binding: the
+// frontend never constructs a Release itself, it round-trips one it
+// received from ListAvailableVersions through the JS object Wails hands
+// back on the next call. This reproduces that exact
+// marshal-JSON/unmarshal-JSON cycle (standing in for the frontend's
+// receive-then-send-back trip) without needing a GUI click, and checks no
+// field is lost -- particularly Assets and ChecksumsURL, which
+// InstallVersion depends on -- then performs a real install with the
+// round-tripped value to prove it still works end to end.
+func TestReleaseJSONRoundTrip_ThenInstall(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	defer db.Close()
+
+	versionsDir := filepath.Join(dir, "versions")
+	if err := os.MkdirAll(versionsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	vm := core.NewVersionManager(db, nil, versionsDir, "")
+	ctx := context.Background()
+
+	releases, err := vm.ListAvailable(ctx)
+	if err != nil {
+		t.Fatalf("ListAvailable: %v", err)
+	}
+	if len(releases) == 0 {
+		t.Fatal("expected at least one stable release")
+	}
+	original := releases[0]
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	var roundTripped release.Release
+	if err := json.Unmarshal(data, &roundTripped); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+
+	if !reflect.DeepEqual(original, roundTripped) {
+		t.Fatalf("release lost data across JSON round-trip:\noriginal:      %+v\nround-tripped: %+v", original, roundTripped)
+	}
+	if len(roundTripped.Assets) == 0 {
+		t.Fatal("round-tripped release has no Assets -- InstallVersion would fail to find a host asset")
+	}
+
+	iv, err := vm.InstallVersion(ctx, roundTripped, false)
+	if err != nil {
+		t.Fatalf("InstallVersion with round-tripped release: %v", err)
+	}
+	if _, err := os.Stat(iv.BinaryPath); err != nil {
+		t.Fatalf("binary not found at %s: %v", iv.BinaryPath, err)
 	}
 
 	if err := vm.RemoveVersion(iv.ID); err != nil {

@@ -6,4 +6,23 @@ const api = {
     ping() {
         return window.go.main.App.Ping();
     },
+
+    listAvailableVersions() {
+        return window.go.main.App.ListAvailableVersions();
+    },
+    listInstalledVersions() {
+        return window.go.main.App.ListInstalledVersions();
+    },
+    installVersion(release, isMono) {
+        return window.go.main.App.InstallVersion(release, isMono);
+    },
+    removeVersion(id) {
+        return window.go.main.App.RemoveVersion(id);
+    },
+    getDefaultVersion() {
+        return window.go.main.App.GetDefaultVersion();
+    },
+    setDefaultVersion(id) {
+        return window.go.main.App.SetDefaultVersion(id);
+    },
 };

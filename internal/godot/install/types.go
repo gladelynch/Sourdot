@@ -13,18 +13,18 @@ import "time"
 // in the versions directory -- this is what avoids the "generic Godot.app
 // naming collision" bug seen in competitor tools on macOS.
 type InstalledVersion struct {
-	ID          string
-	Version     string
-	Major       int
-	Minor       int
-	Patch       int
-	Label       string // "stable", "rc1", "beta2", ...
-	IsMono      bool
-	OS          string
-	Arch        string
-	InstallPath string // directory this version was extracted into
-	BinaryPath  string // path to the actual executable / .app bundle entry point
-	SourceURL   string // release asset URL it came from
-	InstalledAt time.Time
-	SizeBytes   int64
+	ID          string    `json:"id"`
+	Version     string    `json:"version"`
+	Major       int       `json:"major"`
+	Minor       int       `json:"minor"`
+	Patch       int       `json:"patch"`
+	Label       string    `json:"label"` // "stable", "rc1", "beta2", ...
+	IsMono      bool      `json:"isMono"`
+	OS          string    `json:"os"`
+	Arch        string    `json:"arch"`
+	InstallPath string    `json:"installPath"` // directory this version was extracted into
+	BinaryPath  string    `json:"binaryPath"`  // path to the actual executable / .app bundle entry point
+	SourceURL   string    `json:"sourceURL"`   // release asset URL it came from
+	InstalledAt time.Time `json:"installedAt"`
+	SizeBytes   int64     `json:"sizeBytes"`
 }
