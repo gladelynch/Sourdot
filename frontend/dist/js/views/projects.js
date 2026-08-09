@@ -66,7 +66,7 @@ const projectsView = {
 
         row.innerHTML = `
             <div class="project-row-main">
-                <button class="star-btn ${p.favorite ? "is-favorite" : ""}" data-action="favorite" type="button" title="Favorite">★</button>
+                <button class="star-btn ${p.favorite ? "is-favorite" : ""}" data-action="favorite" type="button" aria-pressed="${p.favorite}" aria-label="${p.favorite ? "Remove from favorites" : "Add to favorites"}">★</button>
                 <div class="project-row-info">
                     <div class="project-row-name">
                         ${escapeHtml(p.name)}
@@ -75,11 +75,11 @@ const projectsView = {
                         ${p.missing ? '<span class="badge badge-danger">missing</span>' : ""}
                     </div>
                     <div class="muted project-row-path">${escapeHtml(p.path)}</div>
-                    <input class="tags-input" data-action="tags" type="text" placeholder="tags, comma, separated" value="${escapeHtml((p.tags || []).join(", "))}" />
+                    <input class="tags-input" data-action="tags" type="text" placeholder="tags, comma, separated" aria-label="Tags for ${escapeHtml(p.name)}" value="${escapeHtml((p.tags || []).join(", "))}" />
                 </div>
             </div>
             <div class="project-row-actions">
-                <select class="version-select" data-action="pin" title="Pinned version">
+                <select class="version-select" data-action="pin" aria-label="Pinned version for ${escapeHtml(p.name)}">
                     <option value="">(auto-detect)</option>
                     ${versionOptions}
                 </select>

@@ -27,9 +27,11 @@
                     <button class="btn btn-accent" id="browse-versions-btn" type="button">Browse available…</button>
                 </header>
 
-                <div id="install-progress" class="progress-banner" hidden>
+                <div id="install-progress" class="progress-banner" role="status" hidden>
                     <div class="progress-banner-label" id="install-progress-label">Installing…</div>
-                    <div class="progress-bar"><div class="progress-bar-fill" id="install-progress-fill"></div></div>
+                    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-labelledby="install-progress-label">
+                        <div class="progress-bar-fill" id="install-progress-fill"></div>
+                    </div>
                 </div>
 
                 <div id="installed-versions-list">
@@ -41,9 +43,9 @@
             </section>
 
             <div id="browse-panel" class="modal-overlay" hidden>
-                <div class="modal">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="browse-panel-heading">
                     <header class="modal-header">
-                        <h2>Browse available versions</h2>
+                        <h2 id="browse-panel-heading">Browse available versions</h2>
                         <button class="btn btn-sm" id="browse-panel-close" type="button">Close</button>
                     </header>
                     <div id="available-versions-list" class="modal-body"></div>
@@ -67,12 +69,36 @@
                 <header class="view-header">
                     <h1 id="view-settings-heading">Settings</h1>
                 </header>
+
+                <div class="settings-panel">
+                    <div class="settings-field">
+                        <label for="default-version-select">Default version for unpinned projects</label>
+                        <select id="default-version-select"></select>
+                    </div>
+
+                    <div class="settings-field">
+                        <label for="github-token-input">GitHub personal access token (optional)</label>
+                        <div class="settings-field-row">
+                            <input id="github-token-input" type="password" autocomplete="off" placeholder="Raises the 60/hr unauthenticated rate limit" />
+                            <button id="github-token-save" class="btn btn-sm" type="button">Save</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-field">
+                        <span class="settings-field-label" id="data-dir-label">Data directory</span>
+                        <div class="settings-field-row">
+                            <code id="data-dir-value" class="muted" aria-labelledby="data-dir-label">—</code>
+                            <button id="reveal-data-dir-btn" class="btn btn-sm" type="button">Reveal</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="settings-panel">
                     <dl class="about-list">
                         <dt>Backend status</dt>
                         <dd id="backend-status">checking…</dd>
-                        <dt>Data directory</dt>
-                        <dd id="data-dir">—</dd>
+                        <dt>App version</dt>
+                        <dd id="app-version">—</dd>
                     </dl>
                 </div>
             </section>

@@ -47,4 +47,14 @@ const api = {
     openProject(id) {
         return window.go.main.App.OpenProject(id);
     },
+
+    hasGitHubToken() {
+        return window.go.main.App.HasGitHubToken();
+    },
+    setGitHubToken(token) {
+        return window.go.main.App.SetGitHubToken(token);
+    },
+    openDataDir() {
+        return window.go.main.App.OpenDataDir();
+    },
 };

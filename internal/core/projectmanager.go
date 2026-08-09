@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -68,9 +69,20 @@ func (pm *ProjectManager) AddProject(dir string) (project.Project, error) {
 	return proj, nil
 }
 
-// ListProjects returns every tracked project.
+// ListProjects returns every tracked project, with Missing recomputed
+// against the current filesystem state (not persisted -- recomputing on
+// every read means a project that's moved back into place stops being
+// flagged automatically, rather than sticking at a stale "missing").
 func (pm *ProjectManager) ListProjects() ([]project.Project, error) {
-	return pm.db.ListProjects()
+	projects, err := pm.db.ListProjects()
+	if err != nil {
+		return nil, err
+	}
+	for i := range projects {
+		_, statErr := os.Stat(projects[i].Path)
+		projects[i].Missing = statErr != nil
+	}
+	return projects, nil
 }
 
 // RemoveProject stops tracking a project. It never touches the project's
@@ -137,6 +149,9 @@ func (pm *ProjectManager) OpenProject(ctx context.Context, id string) (install.I
 	}
 	if !ok {
 		return install.InstalledVersion{}, nil, fmt.Errorf("project %s not found", id)
+	}
+	if _, statErr := os.Stat(proj.Path); statErr != nil {
+		return install.InstalledVersion{}, nil, fmt.Errorf("project folder not found at %s (it may have been moved or deleted)", proj.Path)
 	}
 
 	spec, _, ok := pm.ResolveVersionSpec(proj)

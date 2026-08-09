@@ -407,6 +407,57 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
+    margin-bottom: var(--space-4);
+}
+
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.settings-field:last-child {
+    margin-bottom: 0;
+}
+
+.settings-field label,
+.settings-field-label {
+    font-size: 12px;
+    color: var(--fg-secondary);
+    font-weight: 600;
+}
+
+.settings-field-row {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.settings-field-row code {
+    flex: 1;
+    background: var(--bg-0);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+#default-version-select,
+#github-token-input {
+    font: inherit;
+    font-size: 13px;
+    background: var(--bg-0);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--fg-primary);
+    padding: var(--space-2) var(--space-3);
+}
+
+#github-token-input {
+    flex: 1;
 }
 
 .about-list {

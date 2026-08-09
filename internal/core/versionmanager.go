@@ -34,6 +34,13 @@ func NewVersionManager(db *store.DB, events EventSink, versionsDir, githubToken 
 	}
 }
 
+// UpdateGitHubToken swaps in a new GitHub API client using token, so a
+// token saved in Settings takes effect immediately rather than requiring
+// an app restart.
+func (vm *VersionManager) UpdateGitHubToken(token string) {
+	vm.releases = release.NewClient(token, vm.db)
+}
+
 // ListAvailable fetches stable Godot releases from GitHub.
 func (vm *VersionManager) ListAvailable(ctx context.Context) ([]release.Release, error) {
 	return vm.releases.ListStableReleases(ctx)

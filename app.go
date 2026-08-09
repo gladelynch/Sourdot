@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -95,11 +97,17 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
+// AppVersion is GodotVM's own version string. v1 has no release/tagging
+// process yet (packaging/signing/auto-update are explicitly deferred past
+// v1 per the plan), so this stays a hand-bumped placeholder for now.
+const AppVersion = "0.1.0-dev"
+
 // PingResult is returned by Ping as a smoke test that the Go<->JS binding
-// and store are both alive; the Settings view renders it in M0.
+// and store are both alive; the Settings view renders it.
 type PingResult struct {
 	SchemaVersion int    `json:"schemaVersion"`
 	DataDir       string `json:"dataDir"`
+	AppVersion    string `json:"appVersion"`
 }
 
 // Ping reports basic backend health for the Settings view.
@@ -107,6 +115,7 @@ func (a *App) Ping() PingResult {
 	return PingResult{
 		SchemaVersion: store.SchemaVersion,
 		DataDir:       a.dataDir,
+		AppVersion:    AppVersion,
 	}
 }
 
@@ -207,4 +216,44 @@ func (a *App) SetPinnedVersion(id, versionID string) (project.Project, error) {
 func (a *App) OpenProject(id string) (install.InstalledVersion, error) {
 	iv, _, err := a.projectManager.OpenProject(a.ctx, id)
 	return iv, err
+}
+
+// HasGitHubToken reports whether a GitHub PAT is currently saved, without
+// exposing the token's value to the frontend.
+func (a *App) HasGitHubToken() (bool, error) {
+	settings, err := store.LoadSettings(a.dataDir)
+	if err != nil {
+		return false, err
+	}
+	return settings.GitHubToken != "", nil
+}
+
+// SetGitHubToken saves a GitHub PAT (used to raise the 60/hr unauthenticated
+// API rate limit) and applies it immediately, without requiring an app
+// restart. An empty token clears it.
+func (a *App) SetGitHubToken(token string) error {
+	settings, err := store.LoadSettings(a.dataDir)
+	if err != nil {
+		settings = store.DefaultSettings()
+	}
+	settings.GitHubToken = token
+	if err := store.SaveSettings(a.dataDir, settings); err != nil {
+		return err
+	}
+	a.versionManager.UpdateGitHubToken(token)
+	return nil
+}
+
+// OpenDataDir opens GodotVM's data directory in the OS file manager.
+func (a *App) OpenDataDir() error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", a.dataDir)
+	case "darwin":
+		cmd = exec.Command("open", a.dataDir)
+	default:
+		cmd = exec.Command("xdg-open", a.dataDir)
+	}
+	return cmd.Start()
 }
