@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 )
 
-const appDirName = "godotvm"
+const appDirName = "sourdot"
 
-// ConfigDir returns the directory GodotVM stores its settings file and
+// ConfigDir returns the directory Sourdot stores its settings file and
 // BoltDB database in, creating it if it doesn't already exist.
 func ConfigDir() (string, error) {
 	base, err := os.UserConfigDir()

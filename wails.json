@@ -1,6 +1,6 @@
 {
-  "name": "godotvm",
-  "outputfilename": "godotvm",
+  "name": "sourdot",
+  "outputfilename": "sourdot",
   "frontend:install": "",
   "frontend:build": "",
   "author": {

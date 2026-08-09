@@ -12,7 +12,7 @@ import "os/exec"
 // running the scene").
 //
 // Returns the started *os.Process without waiting on it: the editor is
-// meant to keep running independently of GodotVM.
+// meant to keep running independently of Sourdot.
 func Launch(binaryPath, projectPath string) (*exec.Cmd, error) {
 	cmd := exec.Command(binaryPath, "--path", projectPath, "--editor")
 	if err := cmd.Start(); err != nil {

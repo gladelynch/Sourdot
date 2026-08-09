@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// ProjectInfo is the handful of signals GodotVM needs out of a project.godot
+// ProjectInfo is the handful of signals Sourdot needs out of a project.godot
 // file: its declared name, the config_version integer (a reliable signal
 // for the major engine family -- 4 means Godot 3.x, 5 means Godot 4.x --
 // unlike parsing the freeform config/features version string), and whether

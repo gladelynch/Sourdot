@@ -1,4 +1,4 @@
-# GodotVM
+# Sourdot — A Godot Version Manager
 
 A Godot Engine version manager + project manager. Install/switch/remove
 Godot versions, track a project list with per-project engine-version
@@ -40,7 +40,7 @@ defaults to — pass the `webkit2_41` build tag on those systems:
 
 ```
 wails dev -tags webkit2_41      # live-reloading dev build
-wails build -tags webkit2_41    # production build -> build/bin/godotvm
+wails build -tags webkit2_41    # production build -> build/bin/sourdot
 ```
 
 On Windows/macOS, or older Linux distros that still ship `webkit2gtk-4.0`,

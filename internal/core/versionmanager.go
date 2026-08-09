@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gladelynch/godotvm/internal/godot/install"
-	"github.com/gladelynch/godotvm/internal/godot/release"
-	"github.com/gladelynch/godotvm/internal/store"
+	"github.com/gladelynch/sourdot/internal/godot/install"
+	"github.com/gladelynch/sourdot/internal/godot/release"
+	"github.com/gladelynch/sourdot/internal/store"
 )
 
 // VersionManager orchestrates Godot version discovery, install, and

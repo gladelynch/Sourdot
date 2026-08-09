@@ -26,7 +26,7 @@ import (
 // if it's ever actually called; since that never happens in practice
 // here, no elevation prompt is possible. If some future Windows asset
 // ever did include one, this would surface as a plain extraction error,
-// never a UAC prompt -- GodotVM never requests elevation anywhere.
+// never a UAC prompt -- Sourdot never requests elevation anywhere.
 func ExtractZip(zipPath, destDir string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {

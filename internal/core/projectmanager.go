@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gladelynch/godotvm/internal/godot/install"
-	"github.com/gladelynch/godotvm/internal/platform"
-	"github.com/gladelynch/godotvm/internal/project"
-	"github.com/gladelynch/godotvm/internal/store"
+	"github.com/gladelynch/sourdot/internal/godot/install"
+	"github.com/gladelynch/sourdot/internal/platform"
+	"github.com/gladelynch/sourdot/internal/project"
+	"github.com/gladelynch/sourdot/internal/store"
 )
 
 // ProjectManager orchestrates project scanning, pin resolution, and the
@@ -188,7 +188,7 @@ func (pm *ProjectManager) OpenProject(ctx context.Context, id string) (install.I
 
 // ResolveVersionSpec determines which version a project should launch
 // with, following the precedence chain: explicit UI pin (store) >
-// .godotvm-version > .godot-version > .tool-versions > best-effort
+// .sourdot-version > .godot-version > .tool-versions > best-effort
 // project.godot detection. The best-effort tier only carries a major
 // version (see project.MajorFromConfigVersion), which isn't precise enough
 // to auto-install on its own -- it only resolves if a matching major is
@@ -202,7 +202,7 @@ func (pm *ProjectManager) ResolveVersionSpec(proj project.Project) (spec project
 		}
 	}
 	if spec, ok := project.ReadPinFile(proj.Path); ok {
-		return spec, ".godotvm-version", true
+		return spec, ".sourdot-version", true
 	}
 	if spec, ok := project.ReadGodotVersionFile(proj.Path); ok {
 		return spec, ".godot-version", true

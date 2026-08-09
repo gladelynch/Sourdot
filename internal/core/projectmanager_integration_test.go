@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gladelynch/godotvm/internal/core"
-	"github.com/gladelynch/godotvm/internal/store"
+	"github.com/gladelynch/sourdot/internal/core"
+	"github.com/gladelynch/sourdot/internal/store"
 )
 
 // TestOpenProject_EndToEnd exercises the full M3 acceptance flow: add a
 // real project folder, confirm its auto-detected metadata, pin it (via
-// .godotvm-version) to a version that isn't installed yet, open it, and
+// .sourdot-version) to a version that isn't installed yet, open it, and
 // confirm that auto-installs the missing version and then launches the
 // editor. Network-dependent and starts a real (briefly-lived) Godot
 // process, so it's gated the same way as the version-manager tests:
@@ -81,14 +81,14 @@ config/features=PackedStringArray("4.2", "Forward Plus")
 	targetVersion := fmt.Sprintf("%d.%d.%d", target.Major, target.Minor, target.Patch)
 	t.Logf("pinning project to %s", targetVersion)
 
-	pinPath := filepath.Join(projectDir, ".godotvm-version")
+	pinPath := filepath.Join(projectDir, ".sourdot-version")
 	if err := os.WriteFile(pinPath, []byte(targetVersion+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	spec, source, ok := pm.ResolveVersionSpec(proj)
-	if !ok || spec.Version != targetVersion || source != ".godotvm-version" {
-		t.Fatalf("ResolveVersionSpec = %+v, %q, %v; want version %s from .godotvm-version", spec, source, ok, targetVersion)
+	if !ok || spec.Version != targetVersion || source != ".sourdot-version" {
+		t.Fatalf("ResolveVersionSpec = %+v, %q, %v; want version %s from .sourdot-version", spec, source, ok, targetVersion)
 	}
 
 	// versionsDir is empty, so this must exercise the auto-install path.

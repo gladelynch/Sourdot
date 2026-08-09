@@ -26,11 +26,11 @@ func ParsePinValue(s string) PinSpec {
 	return PinSpec{Version: s}
 }
 
-// ReadPinFile reads GodotVM's own .godotvm-version pin file from dir: a
+// ReadPinFile reads Sourdot's own .sourdot-version pin file from dir: a
 // plain single-line file with no OS/arch baked in, so a pin checked into
 // git stays portable across machines.
 func ReadPinFile(dir string) (PinSpec, bool) {
-	return readSingleLinePin(filepath.Join(dir, ".godotvm-version"))
+	return readSingleLinePin(filepath.Join(dir, ".sourdot-version"))
 }
 
 // ReadGodotVersionFile reads the incumbent .godot-version convention

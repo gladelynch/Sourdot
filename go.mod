@@ -1,4 +1,4 @@
-module github.com/gladelynch/godotvm
+module github.com/gladelynch/sourdot
 
 go 1.25.0
 

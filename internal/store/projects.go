@@ -5,7 +5,7 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/gladelynch/godotvm/internal/project"
+	"github.com/gladelynch/sourdot/internal/project"
 )
 
 // PutProject upserts a record, keyed by its ID.

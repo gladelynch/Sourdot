@@ -5,7 +5,7 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/gladelynch/godotvm/internal/godot/install"
+	"github.com/gladelynch/sourdot/internal/godot/install"
 )
 
 // PutInstalledVersion upserts a record, keyed by its ID.

@@ -24,7 +24,7 @@ const (
 // run, even though v1 has nothing to migrate from yet.
 const SchemaVersion = 1
 
-// DB wraps a BoltDB handle with GodotVM's bucket schema.
+// DB wraps a BoltDB handle with Sourdot's bucket schema.
 type DB struct {
 	bolt *bolt.DB
 }

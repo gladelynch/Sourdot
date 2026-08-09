@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gladelynch/godotvm/internal/core"
-	"github.com/gladelynch/godotvm/internal/godot/release"
-	"github.com/gladelynch/godotvm/internal/store"
+	"github.com/gladelynch/sourdot/internal/core"
+	"github.com/gladelynch/sourdot/internal/godot/release"
+	"github.com/gladelynch/sourdot/internal/store"
 )
 
 // TestInstallVersion_EndToEnd exercises the real M1 pipeline against the

@@ -23,7 +23,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:             "GodotVM",
+		Title:             "Sourdot — Godot Version Manager",
 		Width:             1024,
 		Height:            768,
 		MinWidth:          900,
@@ -68,7 +68,7 @@ func main() {
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  true,
 			About: &mac.AboutInfo{
-				Title:   "GodotVM",
+				Title:   "Sourdot",
 				Message: "Godot Engine version & project manager",
 				Icon:    icon,
 			},

@@ -9,12 +9,12 @@ import (
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/gladelynch/godotvm/internal/core"
-	"github.com/gladelynch/godotvm/internal/godot/install"
-	"github.com/gladelynch/godotvm/internal/godot/release"
-	"github.com/gladelynch/godotvm/internal/platform"
-	"github.com/gladelynch/godotvm/internal/project"
-	"github.com/gladelynch/godotvm/internal/store"
+	"github.com/gladelynch/sourdot/internal/core"
+	"github.com/gladelynch/sourdot/internal/godot/install"
+	"github.com/gladelynch/sourdot/internal/godot/release"
+	"github.com/gladelynch/sourdot/internal/platform"
+	"github.com/gladelynch/sourdot/internal/project"
+	"github.com/gladelynch/sourdot/internal/store"
 )
 
 // App is the thin Wails binding layer. It owns process lifecycle (opening
@@ -51,7 +51,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.dataDir = dir
 
-	db, err := store.Open(filepath.Join(dir, "godotvm.db"))
+	db, err := store.Open(filepath.Join(dir, "sourdot.db"))
 	if err != nil {
 		log.Printf("failed to open store: %v", err)
 		return
@@ -82,7 +82,7 @@ func (a *App) domReady(ctx context.Context) {}
 
 // beforeClose is called when the application is about to quit, either by
 // clicking the window close button or calling runtime.Quit. Returning true
-// prevents the close; GodotVM has no unsaved-state prompt to show, so it
+// prevents the close; Sourdot has no unsaved-state prompt to show, so it
 // always allows it.
 func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 	return false
@@ -97,7 +97,7 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
-// AppVersion is GodotVM's own version string. v1 has no release/tagging
+// AppVersion is Sourdot's own version string. v1 has no release/tagging
 // process yet (packaging/signing/auto-update are explicitly deferred past
 // v1 per the plan), so this stays a hand-bumped placeholder for now.
 const AppVersion = "0.1.0-dev"
@@ -212,7 +212,7 @@ func (a *App) SetPinnedVersion(id, versionID string) (project.Project, error) {
 // OpenProject resolves and (auto-installing if needed) launches the
 // correct Godot editor for a tracked project. The launched editor process
 // is intentionally not tracked here -- it's meant to keep running
-// independently of GodotVM.
+// independently of Sourdot.
 func (a *App) OpenProject(id string) (install.InstalledVersion, error) {
 	iv, _, err := a.projectManager.OpenProject(a.ctx, id)
 	return iv, err
@@ -244,7 +244,7 @@ func (a *App) SetGitHubToken(token string) error {
 	return nil
 }
 
-// OpenDataDir opens GodotVM's data directory in the OS file manager.
+// OpenDataDir opens Sourdot's data directory in the OS file manager.
 func (a *App) OpenDataDir() error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {

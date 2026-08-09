@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gladelynch/godotvm/internal/core"
-	"github.com/gladelynch/godotvm/internal/store"
+	"github.com/gladelynch/sourdot/internal/core"
+	"github.com/gladelynch/sourdot/internal/store"
 )
 
 // TestFavoritesAndTagsSurviveRestart targets the exact bug class flagged
