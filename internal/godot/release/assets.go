@@ -46,6 +46,13 @@ var assetPatterns = []assetPattern{
 	{re: regexp.MustCompile(`^Godot_v` + versionToken + `_linux\.(x86_64|x86_32|arm64|arm32)\.zip$`), os: "linux", isMono: false},
 	{re: regexp.MustCompile(`^Godot_v` + versionToken + `_mono_linux_(x86_64|x86_32|arm64|arm32)\.zip$`), os: "linux", isMono: true},
 
+	// Linux, early 4.0 alphas: a transitional naming pairing 4.x's "linux"
+	// with 3.x's bare bitness -- "Godot_v4.0-alpha14_linux.64.zip". Used by
+	// 4.0-alpha1 through alpha14 only; alpha17 onward switched to
+	// "linux.x86_64". No mono builds were published in that window, so
+	// there's deliberately no mono counterpart row here.
+	{re: regexp.MustCompile(`^Godot_v` + versionToken + `_linux\.(32|64)\.zip$`), os: "linux", isMono: false, archMap: bitnessArchMap},
+
 	// Linux, 3.x: named "x11", bitness only (no explicit x86 prefix) --
 	// e.g. "Godot_v3.6-stable_x11.64.zip" / "..._mono_x11_64.zip".
 	{re: regexp.MustCompile(`^Godot_v` + versionToken + `_x11\.(32|64)\.zip$`), os: "linux", isMono: false, archMap: bitnessArchMap},

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,14 +42,112 @@ func (vm *VersionManager) UpdateGitHubToken(token string) {
 	vm.releases = release.NewClient(token, vm.db)
 }
 
-// ListAvailable fetches stable Godot releases from GitHub.
+// releaseIndexTTL bounds how stale the locally cached catalog may get
+// before a page load refetches. Published releases never change, so the
+// only thing a refetch can discover is a brand-new one -- six hours keeps
+// the page instant on every launch while still surfacing a fresh beta the
+// same day. The Refresh button bypasses this entirely.
+const releaseIndexTTL = 6 * time.Hour
+
+// ListAvailable returns the full Godot release catalog -- every channel,
+// stable and pre-release -- serving the cached index when it's fresh and
+// refetching when it isn't.
 func (vm *VersionManager) ListAvailable(ctx context.Context) ([]release.Release, error) {
-	return vm.releases.ListStableReleases(ctx)
+	if cached, fetchedAt, ok := vm.cachedIndex(); ok && time.Since(fetchedAt) < releaseIndexTTL {
+		return cached, nil
+	}
+	return vm.RefreshAvailable(ctx)
 }
 
-// ListInstalled returns every version currently installed on disk.
+// RefreshAvailable refetches the catalog from GitHub unconditionally,
+// falling back to the cached index if the network or the rate limit says
+// no -- a stale catalog is far more useful here than an error page, since
+// almost every entry in it is historical anyway.
+func (vm *VersionManager) RefreshAvailable(ctx context.Context) ([]release.Release, error) {
+	releases, err := vm.releases.ListReleases(ctx)
+	if err != nil {
+		if cached, _, ok := vm.cachedIndex(); ok {
+			return cached, nil
+		}
+		return nil, err
+	}
+	if raw, mErr := json.Marshal(releases); mErr == nil {
+		_ = vm.db.PutReleaseIndex(raw) // best-effort: a cache write failure shouldn't fail the fetch
+	}
+	return releases, nil
+}
+
+// ListAvailableGrouped returns the catalog trimmed to this host's
+// installable assets and chunked into per-series groups, ready for the
+// Versions page to render directly.
+func (vm *VersionManager) ListAvailableGrouped(ctx context.Context) ([]release.SeriesGroup, error) {
+	releases, err := vm.ListAvailable(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return release.GroupBySeries(release.ForCatalog(releases)), nil
+}
+
+// RefreshAvailableGrouped is ListAvailableGrouped with a forced refetch.
+func (vm *VersionManager) RefreshAvailableGrouped(ctx context.Context) ([]release.SeriesGroup, error) {
+	releases, err := vm.RefreshAvailable(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return release.GroupBySeries(release.ForCatalog(releases)), nil
+}
+
+// FindRelease resolves a release tag to the full Release record, including
+// the assets and checksum URL that InstallVersion needs.
+//
+// The frontend installs by tag rather than by handing back a Release
+// object it received earlier: the catalog it holds is deliberately trimmed
+// (no body, host assets only), and re-resolving here means an install
+// always runs against complete, backend-owned data.
+func (vm *VersionManager) FindRelease(ctx context.Context, tagName string) (release.Release, error) {
+	releases, err := vm.ListAvailable(ctx)
+	if err != nil {
+		return release.Release{}, err
+	}
+	for _, rel := range releases {
+		if rel.TagName == tagName {
+			return rel, nil
+		}
+	}
+	return release.Release{}, fmt.Errorf("release %s not found in the available catalog", tagName)
+}
+
+func (vm *VersionManager) cachedIndex() ([]release.Release, time.Time, bool) {
+	raw, fetchedAt, ok := vm.db.GetReleaseIndex()
+	if !ok {
+		return nil, time.Time{}, false
+	}
+	var releases []release.Release
+	if err := json.Unmarshal(raw, &releases); err != nil || len(releases) == 0 {
+		return nil, time.Time{}, false
+	}
+	return releases, fetchedAt, true
+}
+
+// ListInstalled returns every version currently installed on disk, newest
+// and most stable first (see sortsBefore), with TagName backfilled on
+// records written before that field existed -- the Versions page matches
+// installed versions to catalog entries by tag, so it must never see an
+// empty one.
+//
+// The ordering is applied here rather than left to each caller because the
+// store hands records back in key order, which is install order for
+// practical purposes -- meaningless to a user reading a version list.
 func (vm *VersionManager) ListInstalled() ([]install.InstalledVersion, error) {
-	return vm.db.ListInstalledVersions()
+	installed, err := vm.db.ListInstalledVersions()
+	if err != nil {
+		return nil, err
+	}
+	for i := range installed {
+		installed[i].TagName = installed[i].TagOrReconstructed()
+	}
+	sortInstalled(installed)
+	return installed, nil
 }
 
 // InstallVersion downloads, verifies, and extracts the release asset
@@ -112,6 +211,7 @@ func (vm *VersionManager) InstallVersion(ctx context.Context, rel release.Releas
 
 	iv := install.InstalledVersion{
 		ID:          id,
+		TagName:     rel.TagName,
 		Version:     fmt.Sprintf("%d.%d.%d", rel.Major, rel.Minor, rel.Patch),
 		Major:       rel.Major,
 		Minor:       rel.Minor,

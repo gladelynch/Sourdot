@@ -7,11 +7,35 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
-const releasesURL = "https://api.github.com/repos/godotengine/godot/releases?per_page=100"
+const (
+	// godot-builds carries every stable tag *and* every dev/alpha/beta/rc
+	// pre-release (349 releases as of Aug 2026, back to 1.0), with the same
+	// asset naming as godotengine/godot. Fetching it alone replaces what
+	// used to take a separate stable-only source.
+	releasesRepo    = "godotengine/godot-builds"
+	releasesPerPage = 100
+
+	// maxReleasePages bounds the paginated walk. The full catalog needs 4
+	// pages today; the ceiling leaves room to grow while guaranteeing we
+	// can't spin against a misbehaving API.
+	maxReleasePages = 8
+
+	// minSupportedMajor drops 1.x/2.x, whose asset filenames predate every
+	// pattern in the Classify table (so they'd yield releases with zero
+	// installable assets) and which no current project targets.
+	minSupportedMajor = 3
+)
+
+func releasesURL(page int) string {
+	return fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=%d&page=%d",
+		releasesRepo, releasesPerPage, page)
+}
 
 // Cache lets Client avoid burning GitHub's 60/hr unauthenticated rate
 // limit on unchanged data. Defined here (rather than importing
@@ -56,32 +80,69 @@ type rawAsset struct {
 // major.minor[.patch]-label.
 var tagPattern = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.(\d+))?-(.+)$`)
 
-// ListStableReleases fetches releases from godotengine/godot and returns
-// only stable (non-draft, non-prerelease) ones, newest first -- v1's
-// scope, per the plan, is the stable channel only. Each release's Assets
-// is filtered down to classified editor zips; ChecksumsURL is populated
-// from the release's SHA512-SUMS.txt asset if present.
-func (c *Client) ListStableReleases(ctx context.Context) ([]Release, error) {
-	body, err := c.get(ctx, releasesURL)
-	if err != nil {
-		return nil, err
+// ListReleases fetches the whole godot-builds catalog -- every channel,
+// stable and pre-release alike -- and returns it sorted newest series
+// first, with the most stable build of each series leading its series.
+// Each release's Assets is filtered down to classified editor zips;
+// ChecksumsURL is populated from the release's SHA512-SUMS.txt asset if
+// present.
+func (c *Client) ListReleases(ctx context.Context) ([]Release, error) {
+	var releases []Release
+
+	for page := 1; page <= maxReleasePages; page++ {
+		body, err := c.get(ctx, releasesURL(page))
+		if err != nil {
+			if page > 1 && len(releases) > 0 {
+				// Page 1 is the only page that ever gains entries (releases
+				// are immutable once published), so a later page failing
+				// costs us older history, not currency. Returning the
+				// partial catalog beats failing the whole Versions page.
+				break
+			}
+			return nil, err
+		}
+
+		var raws []rawRelease
+		if err := json.Unmarshal(body, &raws); err != nil {
+			return nil, fmt.Errorf("decoding releases page %d: %w", page, err)
+		}
+
+		for _, r := range raws {
+			if r.Draft {
+				continue
+			}
+			if rel, ok := parseRelease(r); ok {
+				releases = append(releases, rel)
+			}
+		}
+
+		if len(raws) < releasesPerPage {
+			break // short page: that was the last one
+		}
 	}
 
-	var raws []rawRelease
-	if err := json.Unmarshal(body, &raws); err != nil {
-		return nil, fmt.Errorf("decoding releases response: %w", err)
-	}
-
-	releases := make([]Release, 0, len(raws))
-	for _, r := range raws {
-		if r.Draft || r.Prerelease {
-			continue
-		}
-		if rel, ok := parseRelease(r); ok {
-			releases = append(releases, rel)
-		}
-	}
+	SortReleases(releases)
 	return releases, nil
+}
+
+// SortReleases orders releases newest-series-first, and within a series
+// most-stable-first (stable, then rc3, rc2, beta5, ..., dev1) -- which for
+// a series is also reverse-chronological, since Godot only ever promotes a
+// version up the channel ladder.
+func SortReleases(releases []Release) {
+	sort.SliceStable(releases, func(i, j int) bool {
+		a, b := releases[i], releases[j]
+		if a.Major != b.Major {
+			return a.Major > b.Major
+		}
+		if a.Minor != b.Minor {
+			return a.Minor > b.Minor
+		}
+		if a.Patch != b.Patch {
+			return a.Patch > b.Patch
+		}
+		return CompareLabels(a.Label, b.Label) > 0
+	})
 }
 
 func parseRelease(r rawRelease) (Release, bool) {
@@ -90,20 +151,44 @@ func parseRelease(r rawRelease) (Release, bool) {
 		return Release{}, false
 	}
 	major, _ := strconv.Atoi(m[1])
+	if major < minSupportedMajor {
+		return Release{}, false
+	}
 	minor, _ := strconv.Atoi(m[2])
 	patch := 0
 	if m[3] != "" {
 		patch, _ = strconv.Atoi(m[3])
 	}
 
+	label := m[4]
+	channel, _, _ := ClassifyLabel(label)
+
+	// Series is the tag minus its label, kept verbatim rather than rebuilt
+	// from major/minor/patch: Godot writes two-component tags for X.0
+	// releases ("4.7-stable", never "4.7.0-stable"), and the UI groups on
+	// this string, so it has to match the tag exactly.
+	series := strings.TrimSuffix(r.TagName, "-"+label)
+
+	notesURL, changelogURL := LinksFromBody(r.Body)
+	if notesURL == "" {
+		notesURL = ReleaseNotesURL(series, label)
+	}
+	if changelogURL == "" {
+		changelogURL = InteractiveChangelogURL(r.TagName)
+	}
+
 	rel := Release{
-		TagName:     r.TagName,
-		Major:       major,
-		Minor:       minor,
-		Patch:       patch,
-		Label:       m[4],
-		PublishedAt: r.PublishedAt,
-		BodyMD:      r.Body,
+		TagName:         r.TagName,
+		Series:          series,
+		Major:           major,
+		Minor:           minor,
+		Patch:           patch,
+		Label:           label,
+		Channel:         channel,
+		PublishedAt:     r.PublishedAt,
+		BodyMD:          r.Body,
+		ReleaseNotesURL: notesURL,
+		ChangelogURL:    changelogURL,
 	}
 
 	for _, a := range r.Assets {

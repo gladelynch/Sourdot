@@ -35,7 +35,7 @@ func TestOpenProject_EndToEnd(t *testing.T) {
 	}
 
 	vm := core.NewVersionManager(db, nil, versionsDir, "")
-	pm := core.NewProjectManager(db, nil, vm)
+	pm := core.NewProjectManager(db, nil, vm, dir)
 	ctx := context.Background()
 
 	// A minimal but real project.godot -- config_version=5 is the actual

@@ -4,11 +4,9 @@ package core_test
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -47,11 +45,10 @@ func TestInstallVersion_EndToEnd(t *testing.T) {
 		t.Fatalf("ListAvailable: %v", err)
 	}
 	if len(releases) == 0 {
-		t.Fatal("expected at least one stable release")
+		t.Fatal("expected a non-empty release catalog")
 	}
 
-	// GitHub returns releases newest first; install the newest.
-	rel := releases[0]
+	rel := newestStable(t, releases)
 	t.Logf("installing %s", rel.TagName)
 
 	iv, err := vm.InstallVersion(ctx, rel, false)
@@ -113,10 +110,10 @@ func TestInstallVersion_Mono(t *testing.T) {
 		t.Fatalf("ListAvailable: %v", err)
 	}
 	if len(releases) == 0 {
-		t.Fatal("expected at least one stable release")
+		t.Fatal("expected a non-empty release catalog")
 	}
 
-	rel := releases[0]
+	rel := newestStable(t, releases)
 	t.Logf("installing %s (mono)", rel.TagName)
 
 	iv, err := vm.InstallVersion(ctx, rel, true)
@@ -145,17 +142,73 @@ func TestInstallVersion_Mono(t *testing.T) {
 	}
 }
 
-// TestReleaseJSONRoundTrip_ThenInstall exercises the specific risk in M2's
-// App.InstallVersion(rel release.Release, isMono bool) binding: the
-// frontend never constructs a Release itself, it round-trips one it
-// received from ListAvailableVersions through the JS object Wails hands
-// back on the next call. This reproduces that exact
-// marshal-JSON/unmarshal-JSON cycle (standing in for the frontend's
-// receive-then-send-back trip) without needing a GUI click, and checks no
-// field is lost -- particularly Assets and ChecksumsURL, which
-// InstallVersion depends on -- then performs a real install with the
-// round-tripped value to prove it still works end to end.
-func TestReleaseJSONRoundTrip_ThenInstall(t *testing.T) {
+// newestStable returns the newest stable release in a catalog that now
+// leads with dev snapshots. The install tests deliberately exercise a
+// stable build: it's the variant with the most consistent asset layout,
+// so a failure points at our code rather than at an in-flux snapshot.
+func newestStable(t *testing.T, releases []release.Release) release.Release {
+	t.Helper()
+	for _, rel := range releases {
+		if rel.Channel == release.ChannelStable {
+			return rel
+		}
+	}
+	t.Fatal("no stable release found in catalog")
+	return release.Release{}
+}
+
+// TestPrereleaseChannelsPresent guards the whole point of sourcing from
+// godot-builds: the catalog has to carry pre-releases, not just the stable
+// tags godotengine/godot exposes. It also checks every entry came out of
+// parsing with the derived fields the UI groups and links on.
+func TestPrereleaseChannelsPresent(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	defer db.Close()
+
+	vm := core.NewVersionManager(db, nil, t.TempDir(), "")
+	releases, err := vm.ListAvailable(context.Background())
+	if err != nil {
+		t.Fatalf("ListAvailable: %v", err)
+	}
+
+	counts := map[string]int{}
+	for _, rel := range releases {
+		counts[rel.Channel]++
+
+		if rel.Series == "" {
+			t.Errorf("%s has no Series, so it can't be grouped", rel.TagName)
+		}
+		if rel.ChangelogURL == "" {
+			t.Errorf("%s has no ChangelogURL", rel.TagName)
+		}
+		if rel.Major < 3 {
+			t.Errorf("%s should have been filtered out (pre-3.x)", rel.TagName)
+		}
+	}
+	t.Logf("catalog: %d releases, channels: %v", len(releases), counts)
+
+	// Every channel below has dozens of real tags upstream; zero of any of
+	// them means the source or the tag parser regressed.
+	for _, channel := range []string{
+		release.ChannelStable, release.ChannelRC, release.ChannelBeta, release.ChannelDev,
+	} {
+		if counts[channel] == 0 {
+			t.Errorf("catalog contains no %s releases", channel)
+		}
+	}
+}
+
+// TestInstallByTag_FromTrimmedCatalog exercises the exact path the
+// Versions page takes. The frontend only ever holds the trimmed catalog
+// (no body, host assets only) and installs by passing a tag string back,
+// so the risk worth testing is whether a tag taken from that trimmed view
+// still resolves to a complete, installable Release on the backend --
+// including the Assets and ChecksumsURL the trim strips down.
+func TestInstallByTag_FromTrimmedCatalog(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "test.db"))
 	if err != nil {
@@ -171,34 +224,50 @@ func TestReleaseJSONRoundTrip_ThenInstall(t *testing.T) {
 	vm := core.NewVersionManager(db, nil, versionsDir, "")
 	ctx := context.Background()
 
-	releases, err := vm.ListAvailable(ctx)
+	groups, err := vm.ListAvailableGrouped(ctx)
 	if err != nil {
-		t.Fatalf("ListAvailable: %v", err)
+		t.Fatalf("ListAvailableGrouped: %v", err)
 	}
-	if len(releases) == 0 {
-		t.Fatal("expected at least one stable release")
-	}
-	original := releases[0]
-
-	data, err := json.Marshal(original)
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	var roundTripped release.Release
-	if err := json.Unmarshal(data, &roundTripped); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
+	if len(groups) == 0 {
+		t.Fatal("expected a non-empty grouped catalog")
 	}
 
-	if !reflect.DeepEqual(original, roundTripped) {
-		t.Fatalf("release lost data across JSON round-trip:\noriginal:      %+v\nround-tripped: %+v", original, roundTripped)
+	// Pick a tag the way the UI would: walk the rendered groups for a
+	// stable entry, then send only its tag string across the boundary.
+	var tagName string
+	for _, g := range groups {
+		for _, rel := range g.Releases {
+			if rel.Channel == release.ChannelStable {
+				tagName = rel.TagName
+				break
+			}
+		}
+		if tagName != "" {
+			break
+		}
 	}
-	if len(roundTripped.Assets) == 0 {
-		t.Fatal("round-tripped release has no Assets -- InstallVersion would fail to find a host asset")
+	if tagName == "" {
+		t.Fatal("no stable release in the grouped catalog")
+	}
+	t.Logf("installing by tag %q", tagName)
+
+	resolved, err := vm.FindRelease(ctx, tagName)
+	if err != nil {
+		t.Fatalf("FindRelease(%q): %v", tagName, err)
+	}
+	if len(resolved.Assets) == 0 {
+		t.Fatal("resolved release has no Assets -- InstallVersion would fail to find a host asset")
+	}
+	if resolved.ChecksumsURL == "" {
+		t.Error("resolved release has no ChecksumsURL, so the install would skip verification")
 	}
 
-	iv, err := vm.InstallVersion(ctx, roundTripped, false)
+	iv, err := vm.InstallVersion(ctx, resolved, false)
 	if err != nil {
-		t.Fatalf("InstallVersion with round-tripped release: %v", err)
+		t.Fatalf("InstallVersion for tag %q: %v", tagName, err)
+	}
+	if iv.TagName != tagName {
+		t.Errorf("installed record TagName = %q, want %q", iv.TagName, tagName)
 	}
 	if _, err := os.Stat(iv.BinaryPath); err != nil {
 		t.Fatalf("binary not found at %s: %v", iv.BinaryPath, err)

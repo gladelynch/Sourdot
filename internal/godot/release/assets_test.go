@@ -21,6 +21,17 @@ func TestClassify(t *testing.T) {
 		{"Godot_v4.7.1-stable_win32.exe.zip", ClassifiedAsset{"windows", "x86_32", false}},
 		{"Godot_v4.7.1-stable_windows_arm64.exe.zip", ClassifiedAsset{"windows", "arm64", false}},
 
+		// 4.0-alpha1..14 transitional Linux naming: 4.x's "linux" with
+		// 3.x's bare bitness. Real filenames from godot-builds; before
+		// these were covered, all 14 of those alphas showed up with zero
+		// installable Linux assets and got dropped from the catalog.
+		{"Godot_v4.0-alpha14_linux.64.zip", ClassifiedAsset{"linux", "x86_64", false}},
+		{"Godot_v4.0-alpha14_linux.32.zip", ClassifiedAsset{"linux", "x86_32", false}},
+		{"Godot_v4.0-alpha1_linux.64.zip", ClassifiedAsset{"linux", "x86_64", false}},
+		// alpha17 onward moved to the modern spelling; both must classify.
+		{"Godot_v4.0-alpha17_linux.x86_64.zip", ClassifiedAsset{"linux", "x86_64", false}},
+		{"Godot_v4.0-alpha17_mono_linux_x86_64.zip", ClassifiedAsset{"linux", "x86_64", true}},
+
 		// 4.x mono
 		{"Godot_v4.7.1-stable_mono_linux_x86_64.zip", ClassifiedAsset{"linux", "x86_64", true}},
 		{"Godot_v4.7.1-stable_mono_macos.universal.zip", ClassifiedAsset{"macos", "universal", true}},

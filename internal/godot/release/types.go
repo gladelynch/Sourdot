@@ -7,19 +7,28 @@ import "time"
 
 // Release is a single Godot release as reported by the GitHub Releases API.
 //
-// Verified Aug 2026 against godotengine/godot: godotengine/godot-builds
-// (which hosts rc/beta/dev pre-releases, out of v1's stable-only scope)
-// uses an identical asset-naming scheme, so this type and the Classify
-// table both work unchanged if pre-release channels are added later --
-// only the client's source-repo constant would need to change.
+// Sourced from godotengine/godot-builds, which is a strict superset of
+// godotengine/godot: it carries every stable tag plus all the dev/alpha/
+// beta/rc pre-releases, using an identical asset-naming scheme (so the
+// Classify table below works unchanged across both).
 type Release struct {
 	TagName     string    `json:"tagName"` // e.g. "4.2.1-stable"
+	Series      string    `json:"series"`  // the tag's version part, e.g. "4.2.1" -- the grouping key
 	Major       int       `json:"major"`
 	Minor       int       `json:"minor"`
 	Patch       int       `json:"patch"`
-	Label       string    `json:"label"` // "stable", "rc1", "beta2", ...
+	Label       string    `json:"label"`   // "stable", "rc1", "beta2", ...
+	Channel     string    `json:"channel"` // Label with its sequence number stripped: "stable", "rc", "beta", "alpha", "dev"
 	PublishedAt time.Time `json:"publishedAt"`
-	BodyMD      string    `json:"bodyMD"` // release notes body, rendered for changelog preview in M2
+	BodyMD      string    `json:"bodyMD"` // raw release-notes body; stripped from the catalog sent to the UI to keep the payload small
+
+	// ReleaseNotesURL and ChangelogURL are the human-facing write-ups for
+	// this release, opened in the user's real browser (never in-app). Both
+	// are taken from the release body when it carries them and otherwise
+	// reconstructed; see notes.go. ReleaseNotesURL can be empty, the
+	// changelog one never is.
+	ReleaseNotesURL string `json:"releaseNotesURL"`
+	ChangelogURL    string `json:"changelogURL"`
 
 	// ChecksumsURL points at the release's SHA512-SUMS.txt asset, if
 	// published. Verified present for every stable release checked from

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/url"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -46,14 +48,15 @@ func (a *App) startup(ctx context.Context) {
 
 	dir, err := platform.ConfigDir()
 	if err != nil {
-		log.Printf("failed to resolve config dir: %v", err)
+		a.fatal("Sourdot couldn't resolve its configuration directory.", err)
 		return
 	}
 	a.dataDir = dir
 
 	db, err := store.Open(filepath.Join(dir, "sourdot.db"))
 	if err != nil {
-		log.Printf("failed to open store: %v", err)
+		a.fatal("Sourdot couldn't open its database.\n\n"+
+			"This usually means another copy of Sourdot is already running.", err)
 		return
 	}
 	if err := db.EnsureSchemaVersion(); err != nil {
@@ -69,12 +72,30 @@ func (a *App) startup(ctx context.Context) {
 
 	versionsDir, err := platform.VersionsDir()
 	if err != nil {
-		log.Printf("failed to resolve versions dir: %v", err)
+		a.fatal("Sourdot couldn't create its versions directory.", err)
 		return
 	}
 
 	a.versionManager = core.NewVersionManager(db, a, versionsDir, settings.GitHubToken)
-	a.projectManager = core.NewProjectManager(db, a, a.versionManager)
+	a.projectManager = core.NewProjectManager(db, a, a.versionManager, dir)
+}
+
+// fatal reports an unrecoverable startup failure and exits.
+//
+// Every binding below assumes startup finished wiring the managers up.
+// Before this existed, a startup failure just logged and returned, leaving
+// them nil so the first call from the frontend nil-panicked -- the user saw
+// an empty, silently broken window with no explanation. The most likely
+// trigger is mundane: a second copy of Sourdot finding the BoltDB file
+// already locked.
+func (a *App) fatal(message string, err error) {
+	log.Printf("%s: %v", message, err)
+	_, _ = wailsruntime.MessageDialog(a.ctx, wailsruntime.MessageDialogOptions{
+		Type:    wailsruntime.ErrorDialog,
+		Title:   "Sourdot can't start",
+		Message: fmt.Sprintf("%s\n\n%v", message, err),
+	})
+	wailsruntime.Quit(a.ctx)
 }
 
 // domReady is called after front-end resources have been loaded.
@@ -119,9 +140,17 @@ func (a *App) Ping() PingResult {
 	}
 }
 
-// ListAvailableVersions fetches stable Godot releases from GitHub.
-func (a *App) ListAvailableVersions() ([]release.Release, error) {
-	return a.versionManager.ListAvailable(a.ctx)
+// ListAvailableVersions returns the full Godot catalog -- stable, rc, beta,
+// alpha and dev -- grouped into version series for the Versions page,
+// served from the local cache when it's fresh.
+func (a *App) ListAvailableVersions() ([]release.SeriesGroup, error) {
+	return a.versionManager.ListAvailableGrouped(a.ctx)
+}
+
+// RefreshAvailableVersions is ListAvailableVersions with a forced refetch,
+// behind the Versions page's Refresh button.
+func (a *App) RefreshAvailableVersions() ([]release.SeriesGroup, error) {
+	return a.versionManager.RefreshAvailableGrouped(a.ctx)
 }
 
 // ListInstalledVersions returns every version currently installed on disk.
@@ -129,11 +158,20 @@ func (a *App) ListInstalledVersions() ([]install.InstalledVersion, error) {
 	return a.versionManager.ListInstalled()
 }
 
-// InstallVersion downloads and installs rel's asset matching this host's
-// platform, in the requested standard/mono variant. Emits
-// download_progress/checksum_verified/install_complete events while it
-// runs, which the Versions view uses to drive its progress bar.
-func (a *App) InstallVersion(rel release.Release, isMono bool) (install.InstalledVersion, error) {
+// InstallVersion downloads and installs the release tagged tagName, in the
+// requested standard/mono variant, picking the asset matching this host's
+// platform. Emits download_progress/checksum_verified/install_complete
+// events while it runs, which the Versions view uses to drive its progress
+// bar.
+//
+// Takes a tag rather than a Release value so the frontend never has to
+// round-trip a struct it can't fully see: the catalog it holds is trimmed
+// for size, and the backend re-resolves the complete record here.
+func (a *App) InstallVersion(tagName string, isMono bool) (install.InstalledVersion, error) {
+	rel, err := a.versionManager.FindRelease(a.ctx, tagName)
+	if err != nil {
+		return install.InstalledVersion{}, err
+	}
 	return a.versionManager.InstallVersion(a.ctx, rel, isMono)
 }
 
@@ -241,6 +279,38 @@ func (a *App) SetGitHubToken(token string) error {
 		return err
 	}
 	a.versionManager.UpdateGitHubToken(token)
+	return nil
+}
+
+// browserAllowedHosts bounds what OpenURL will hand to the user's browser.
+//
+// The URLs the Versions page offers are parsed out of GitHub release
+// bodies, which is remote content Sourdot doesn't author. Handing an
+// arbitrary string straight to the OS URL handler would turn that into a
+// way to launch non-http schemes or arbitrary sites from a link the user
+// reasonably expects to be Godot documentation, so the target host is
+// checked against the three domains Godot actually publishes on.
+var browserAllowedHosts = map[string]bool{
+	"godotengine.org":       true,
+	"www.godotengine.org":   true,
+	"github.com":            true,
+	"godotengine.github.io": true,
+}
+
+// OpenURL opens a Godot release-notes or changelog URL in the user's
+// default browser. Deliberately never renders remote pages in-app.
+func (a *App) OpenURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("not a valid URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("refusing to open non-https URL %q", rawURL)
+	}
+	if !browserAllowedHosts[u.Hostname()] {
+		return fmt.Errorf("refusing to open URL outside Godot's documented domains: %q", u.Hostname())
+	}
+	wailsruntime.BrowserOpenURL(a.ctx, u.String())
 	return nil
 }
 
