@@ -1,0 +1,10 @@
+{
+  "name": "godotvm",
+  "outputfilename": "godotvm",
+  "frontend:install": "",
+  "frontend:build": "",
+  "author": {
+    "name": "Glade",
+    "email": "gladelynch@gmail.com"
+  }
+}

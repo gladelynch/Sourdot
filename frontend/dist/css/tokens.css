@@ -1,0 +1,41 @@
+/*
+ * Design tokens for the GodotVM custom dark theme.
+ * Hand-rolled CSS custom properties — no preprocessor, no utility framework.
+ * Keep this file to token definitions only; component styles live in main.css.
+ */
+:root {
+    /* Layered dark surfaces, back to front */
+    --bg-0: #0e1013;
+    --bg-1: #15181c;
+    --bg-2: #1c2025;
+    --bg-3: #262b31;
+
+    --border: #2e343b;
+    --border-strong: #3a414a;
+
+    --fg-primary: #e8eaed;
+    --fg-secondary: #b4bac2;
+    --fg-muted: #767e88;
+
+    --accent: #6ea8fe;
+    --accent-strong: #4c8dff;
+    --accent-contrast: #08111f;
+
+    --success: #4fd18b;
+    --danger: #f27272;
+    --warning: #f2b872;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --font-sans: -apple-system, "Segoe UI", "Inter", system-ui, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", ui-monospace, monospace;
+}

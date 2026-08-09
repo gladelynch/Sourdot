@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge, Chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GodotVM</title>
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/main.css" />
+</head>
+
+<body>
+    <div class="app">
+        <nav class="sidebar" aria-label="Primary">
+            <div class="brand">GodotVM</div>
+            <button class="nav-item is-active" data-view="versions" type="button">Versions</button>
+            <button class="nav-item" data-view="projects" type="button">Projects</button>
+            <div class="nav-spacer"></div>
+            <button class="nav-item" data-view="settings" type="button">Settings</button>
+        </nav>
+
+        <main class="content">
+            <section id="view-versions" class="view is-active" aria-labelledby="view-versions-heading">
+                <header class="view-header">
+                    <h1 id="view-versions-heading">Versions</h1>
+                    <button class="btn btn-accent" id="browse-versions-btn" type="button">Browse available…</button>
+                </header>
+                <div class="empty-state">
+                    <p>No Godot versions installed yet.</p>
+                    <p class="muted">Version install/management ships in M1–M2.</p>
+                </div>
+            </section>
+
+            <section id="view-projects" class="view" aria-labelledby="view-projects-heading" hidden>
+                <header class="view-header">
+                    <h1 id="view-projects-heading">Projects</h1>
+                    <button class="btn btn-accent" id="add-project-btn" type="button">Add project…</button>
+                </header>
+                <div class="empty-state">
+                    <p>No projects tracked yet.</p>
+                    <p class="muted">Project scanning/pinning ships in M3–M4.</p>
+                </div>
+            </section>
+
+            <section id="view-settings" class="view" aria-labelledby="view-settings-heading" hidden>
+                <header class="view-header">
+                    <h1 id="view-settings-heading">Settings</h1>
+                </header>
+                <div class="settings-panel">
+                    <dl class="about-list">
+                        <dt>Backend status</dt>
+                        <dd id="backend-status">checking…</dd>
+                        <dt>Data directory</dt>
+                        <dd id="data-dir">—</dd>
+                    </dl>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/events.js"></script>
+    <script src="js/views/versions.js"></script>
+    <script src="js/views/projects.js"></script>
+    <script src="js/views/settings.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
