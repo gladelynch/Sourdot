@@ -2,7 +2,7 @@
 
 ## Context
 
-Sourdot is currently a dev-only portable build: `wails build` drops a binary in `build/bin/`, `dev.sh` and `Sourdot-Dev.desktop` are hardcoded to `/home/bloo`, there is no git remote, no tags, no LICENSE, and `AppVersion` is a hand-bumped `const` in `app.go:124`. CI compiles on three OSes but publishes nothing. STATUS.md lists distribution and auto-update as the blockers to public release.
+Sourdot is currently a dev-only portable build: `wails build` drops a binary in `build/bin/`, `dev.sh` and `Sourdot-Dev.desktop` are hardcoded to `/home/bloo`, there are no tags, and `AppVersion` is a hand-bumped `const` in `app.go:124`. CI compiles on three OSes but publishes nothing. STATUS.md lists distribution and auto-update as the blockers to public release.
 
 Goal: real installers for **Linux + Windows**, published from a **public GitHub repo** on a tag push, with the app **checking for updates on launch, prompting, and self-replacing** — payloads authenticated by an **Ed25519 signature** whose private key lives in GitHub Actions so releasing stays a one-command, set-and-forget operation. macOS is explicitly out of scope (no Apple Developer account); keep its CI compile check only.
 
@@ -48,7 +48,7 @@ func Display() string  // "dev" or Version
 - `main.go`: add a `--version` fast path before `wails.Run` (exit 0). Required by the pre-swap smoke test in M5.
 - `wails.json`: add the missing `info` block — `productName: "Sourdot"` (becomes `%LOCALAPPDATA%\Programs\Sourdot`; **changing it later breaks install-kind detection**, so keep it the bare wordmark, *not* the tagline), `companyName`, `copyright`, `productVersion: "0.0.0"` (CI patches). Set `comments`/`fileDescription` to "Godot Version Manager" — that string is what Windows Start-menu search indexes beyond the shortcut name, and it is the Windows counterpart to the Linux `.desktop` `Keywords=` line. Name the NSIS Start-menu shortcut `Sourdot — Godot Version Manager` for the same reason.
 - `Makefile`: `VERSION ?= dev`, `LDFLAGS := -X .../buildinfo.Version=$(VERSION)`, pass to `wails build`.
-- Add `LICENSE` (MIT — also unblocks the NSIS license page).
+- ~~Add `LICENSE`~~ — done: GPL-3.0-or-later, which also unblocks the NSIS license page.
 
 Dev builds report `dev` → `IsRelease()` false → the updater short-circuits before touching the network. That is the single gate stopping `wails dev` / `go run` from self-updating.
 

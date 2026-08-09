@@ -85,3 +85,12 @@ this is the automatable slice of cross-platform verification. It does
 confirming the editor actually launches, no elevation/UAC prompt appears
 on Windows, and multiple installed versions coexist correctly on macOS
 are still outstanding and need someone with access to that hardware.
+
+## License
+
+GNU General Public License v3.0 — see [`LICENSE`](LICENSE).
+
+`SPDX-License-Identifier: GPL-3.0-or-later`
+
+Note that this is a *separate tool*, not engine code: Godot Engine itself
+is MIT-licensed, and nothing here is derived from or linked into it.

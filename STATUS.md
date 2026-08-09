@@ -28,7 +28,7 @@ it — this file tracks execution against that plan.
 2. **Visual confirmation of the M2–M5 UI.** The dev machine's screen locked (idle timeout) partway through this work; everything past M1 was verified through Go-side tests and code review rather than an eyeballed screenshot. Worth a quick manual look: `make build && ./build/bin/sourdot`.
 3. **v1.x backlog** (deliberately deferred, not started): export template management, addon/Asset-Library awareness, disk-usage cleanup dashboard, nightly/dev channel support, custom mirror/offline support, a CLI/TUI surface reusing `internal/core`, code signing/notarization, auto-update, system tray, recursive multi-project folder scanning.
 4. **Distribution.** The app is unsigned and has no installer/packaging step beyond `wails build`'s default output. Fine for local dev; blocks any kind of public distribution.
-5. **Not pushed anywhere.** All 7 commits are local to `main` in this repo; no git remote is configured yet.
+5. **Published, but not released.** `main` is public at https://github.com/gladelynch/Sourdot under GPL-3.0-or-later, with CI green on Linux/macOS/Windows. There are no tags and no downloadable artifacts yet — see `DISTRIBUTION-PLAN.md`.
 
 ## Quick pointers
 
