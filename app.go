@@ -56,7 +56,19 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.db = db
 
-	a.versionManager = core.NewVersionManager(db, a)
+	settings, err := store.LoadSettings(dir)
+	if err != nil {
+		log.Printf("failed to load settings, using defaults: %v", err)
+		settings = store.DefaultSettings()
+	}
+
+	versionsDir, err := platform.VersionsDir()
+	if err != nil {
+		log.Printf("failed to resolve versions dir: %v", err)
+		return
+	}
+
+	a.versionManager = core.NewVersionManager(db, a, versionsDir, settings.GitHubToken)
 	a.projectManager = core.NewProjectManager(db, a)
 }
 
