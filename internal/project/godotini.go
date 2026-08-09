@@ -11,12 +11,15 @@ import (
 // ProjectInfo is the handful of signals Sourdot needs out of a project.godot
 // file: its declared name, the config_version integer (a reliable signal
 // for the major engine family -- 4 means Godot 3.x, 5 means Godot 4.x --
-// unlike parsing the freeform config/features version string), and whether
-// it's a C# project.
+// unlike parsing the freeform config/features version string), whether
+// it's a C# project, its config/icon path (if any), and a best-effort
+// precise engine version parsed from config/features.
 type ProjectInfo struct {
-	Name          string
-	ConfigVersion int
-	UsesCSharp    bool
+	Name           string
+	ConfigVersion  int
+	UsesCSharp     bool
+	Icon           string // config/icon value, e.g. "res://icon.svg"; empty if unset
+	FeatureVersion string // e.g. "4.3", parsed from config/features; "" if not found/parseable -- display only, see MajorFromConfigVersion for the resolution-authoritative major
 }
 
 // ParseProjectGodot does a minimal hand-rolled scan of a project.godot
@@ -64,6 +67,10 @@ func ParseProjectGodot(path string) (ProjectInfo, error) {
 			}
 		case inApplication && key == "config/name":
 			info.Name = unquote(value)
+		case inApplication && key == "config/icon":
+			info.Icon = unquote(value)
+		case inApplication && key == "config/features":
+			info.FeatureVersion = parseFeatureVersion(value)
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -82,6 +89,47 @@ func unquote(s string) string {
 		return s[1 : len(s)-1]
 	}
 	return s
+}
+
+// parseFeatureVersion pulls the engine-version token out of a
+// config/features value, e.g. `PackedStringArray("4.3", "Forward Plus")` ->
+// "4.3". Returns "" if no version-shaped token is found. Best-effort only:
+// Godot's feature tags track the minor release ("4.3"), not the exact
+// patch/beta build, so this can't distinguish "4.8" stable from a "4.8"
+// beta -- see ProjectInfo.FeatureVersion.
+func parseFeatureVersion(value string) string {
+	inner := value
+	if i := strings.Index(inner, "("); i >= 0 {
+		inner = inner[i+1:]
+	}
+	inner = strings.TrimSuffix(strings.TrimSpace(inner), ")")
+	for _, tok := range strings.Split(inner, ",") {
+		tok = unquote(strings.TrimSpace(tok))
+		if isVersionToken(tok) {
+			return tok
+		}
+	}
+	return ""
+}
+
+// isVersionToken reports whether s looks like a version number ("4.3"):
+// digits and dots only, with at least one dot -- enough to distinguish it
+// from feature tags like "Forward Plus" or "C#" in the same array.
+func isVersionToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	hasDot := false
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+		case r == '.':
+			hasDot = true
+		default:
+			return false
+		}
+	}
+	return hasDot
 }
 
 func hasCSProjSibling(dir string) bool {
