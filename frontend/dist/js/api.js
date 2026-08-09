@@ -25,4 +25,26 @@ const api = {
     setDefaultVersion(id) {
         return window.go.main.App.SetDefaultVersion(id);
     },
+
+    pickAndAddProject() {
+        return window.go.main.App.PickAndAddProject();
+    },
+    listProjects() {
+        return window.go.main.App.ListProjects();
+    },
+    removeProject(id) {
+        return window.go.main.App.RemoveProject(id);
+    },
+    setFavorite(id, favorite) {
+        return window.go.main.App.SetFavorite(id, favorite);
+    },
+    setTags(id, tags) {
+        return window.go.main.App.SetTags(id, tags);
+    },
+    setPinnedVersion(id, versionId) {
+        return window.go.main.App.SetPinnedVersion(id, versionId);
+    },
+    openProject(id) {
+        return window.go.main.App.OpenProject(id);
+    },
 };

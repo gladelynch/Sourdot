@@ -11,6 +11,7 @@ import (
 	"github.com/gladelynch/godotvm/internal/godot/install"
 	"github.com/gladelynch/godotvm/internal/godot/release"
 	"github.com/gladelynch/godotvm/internal/platform"
+	"github.com/gladelynch/godotvm/internal/project"
 	"github.com/gladelynch/godotvm/internal/store"
 )
 
@@ -151,4 +152,59 @@ func (a *App) SetDefaultVersion(id string) error {
 	}
 	settings.DefaultVersionID = id
 	return store.SaveSettings(a.dataDir, settings)
+}
+
+// PickAndAddProject opens a native folder picker and, if the user selects
+// one, adds it as a tracked project in one step. Returns nil (not an
+// error) if the user cancels the picker.
+func (a *App) PickAndAddProject() (*project.Project, error) {
+	dir, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title: "Select a Godot project folder",
+	})
+	if err != nil {
+		return nil, err
+	}
+	if dir == "" {
+		return nil, nil // user cancelled
+	}
+	proj, err := a.projectManager.AddProject(dir)
+	if err != nil {
+		return nil, err
+	}
+	return &proj, nil
+}
+
+// ListProjects returns every tracked project.
+func (a *App) ListProjects() ([]project.Project, error) {
+	return a.projectManager.ListProjects()
+}
+
+// RemoveProject stops tracking a project (never touches its files on disk).
+func (a *App) RemoveProject(id string) error {
+	return a.projectManager.RemoveProject(id)
+}
+
+// SetFavorite toggles a project's favorite flag.
+func (a *App) SetFavorite(id string, favorite bool) (project.Project, error) {
+	return a.projectManager.SetFavorite(id, favorite)
+}
+
+// SetTags replaces a project's tag list.
+func (a *App) SetTags(id string, tags []string) (project.Project, error) {
+	return a.projectManager.SetTags(id, tags)
+}
+
+// SetPinnedVersion sets (or, with versionID "", clears) a project's
+// explicit UI pin.
+func (a *App) SetPinnedVersion(id, versionID string) (project.Project, error) {
+	return a.projectManager.SetPinnedVersion(id, versionID)
+}
+
+// OpenProject resolves and (auto-installing if needed) launches the
+// correct Godot editor for a tracked project. The launched editor process
+// is intentionally not tracked here -- it's meant to keep running
+// independently of GodotVM.
+func (a *App) OpenProject(id string) (install.InstalledVersion, error) {
+	iv, _, err := a.projectManager.OpenProject(a.ctx, id)
+	return iv, err
 }

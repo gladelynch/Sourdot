@@ -151,6 +151,11 @@ body {
     color: var(--accent-contrast);
 }
 
+.badge-danger {
+    background: var(--danger);
+    color: var(--bg-0);
+}
+
 /* --- Progress banner --- */
 .progress-banner {
     background: var(--bg-1);
@@ -254,6 +259,102 @@ body {
 
 .btn-sm {
     padding: var(--space-1) var(--space-3);
+    font-size: 12px;
+}
+
+/* --- Project rows --- */
+.project-list {
+    margin-top: var(--space-2);
+}
+
+.project-row {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.project-row-main {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    flex: 1;
+    min-width: 240px;
+}
+
+.project-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.project-row-name {
+    font-weight: 600;
+}
+
+.project-row-path {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    word-break: break-all;
+}
+
+.star-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--border-strong);
+    cursor: pointer;
+    padding: 2px;
+}
+
+.star-btn.is-favorite {
+    color: var(--accent);
+}
+
+.tags-input {
+    font: inherit;
+    font-size: 12px;
+    background: var(--bg-0);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-2);
+    color: var(--fg-secondary);
+    width: 100%;
+    max-width: 320px;
+}
+
+.tags-input:focus {
+    outline: 1px solid var(--accent);
+    color: var(--fg-primary);
+}
+
+.version-select {
+    font: inherit;
+    font-size: 12px;
+    background: var(--bg-0);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--fg-primary);
+    padding: var(--space-1) var(--space-2);
+}
+
+.project-row-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+
+.project-row-status {
+    flex-basis: 100%;
     font-size: 12px;
 }
 
