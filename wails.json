@@ -2,9 +2,10 @@
   "name": "sourdot",
   "outputfilename": "sourdot",
   "frontend:install": "",
-  "frontend:build": "",
+  "frontend:build": "go run ../tools/frontendbuild -minify",
   "author": {
     "name": "Glade",
     "email": "gladelynch@gmail.com"
-  }
+  },
+  "frontend:dev:assetdir": "frontend/dist"
 }

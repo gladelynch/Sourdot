@@ -470,6 +470,71 @@ body {
     color: var(--danger);
 }
 
+/* --- Menu button (catalog "Install" dropdown) --- */
+.menu-anchor {
+    display: inline-flex;
+}
+
+.menu-caret {
+    font-size: 9px;
+    opacity: 0.8;
+}
+
+/* Positioned `fixed` from the button's rect rather than absolutely inside
+   the row: .series-group clips to overflow:hidden for its rounded corners,
+   which would cut the menu off on a series' last row. See MenuButton.jsx. */
+.menu {
+    position: fixed;
+    z-index: 20;
+    min-width: 176px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: var(--space-1);
+    background: var(--bg-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    font: inherit;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--fg-primary);
+    cursor: pointer;
+}
+
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
+    background: var(--bg-3);
+}
+
+/* A variant that's already installed stays listed rather than disappearing:
+   it's the answer to "which one do I have?" at the moment that question is
+   being asked. */
+.menu-item:disabled {
+    color: var(--fg-muted);
+    cursor: default;
+}
+
+.menu-item-hint {
+    font-size: 11px;
+    color: var(--success);
+}
+
+.menu-item:disabled .menu-item-hint {
+    opacity: 0.75;
+}
+
 /* An install or removal is in flight: freeze the lists so a second click
    can't race it, while leaving the progress banner readable. */
 .view.is-busy .series-body,

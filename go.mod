@@ -3,6 +3,7 @@ module github.com/gladelynch/sourdot
 go 1.25.0
 
 require (
+	github.com/evanw/esbuild v0.28.2
 	github.com/wailsapp/wails/v2 v2.13.0
 	go.etcd.io/bbolt v1.5.0
 )

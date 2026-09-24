@@ -19,3 +19,8 @@ frontend/wailsjs
 
 # System enviroment variables
 env
+# Generated frontend bundle: built from frontend/src + frontend/public by
+# tools/frontendbuild. The .gitkeep stays so //go:embed all:frontend/dist
+# resolves on a fresh clone, before the frontend has been built once.
+frontend/dist/*
+!frontend/dist/.gitkeep

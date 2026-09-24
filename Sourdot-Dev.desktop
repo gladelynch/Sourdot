@@ -4,9 +4,18 @@ Name=Sourdot (dev)
 GenericName=Godot Version Manager
 Comment=Install, switch and launch Godot Engine versions — dev mode with hot reloading
 Keywords=Godot;GodotEngine;Godot4;Godot3;engine;version;manager;gamedev;game;launcher;
-Exec=/home/bloo/Development/Apps/Sourdot/dev.sh
-Path=/home/bloo/Development/Apps/Sourdot
-Icon=/home/bloo/Development/Apps/Sourdot/build/appicon.png
+Exec=/home/glade/Development/Apps/Sourdot/dev.sh
+Path=/home/glade/Development/Apps/Sourdot
+Icon=/home/glade/Development/Apps/Sourdot/build/appicon.png
 Terminal=false
 Categories=Development;IDE;
 StartupWMClass=sourdot
+Actions=Restart;Stop;
+
+[Desktop Action Restart]
+Name=Restart dev server
+Exec=/home/glade/Development/Apps/Sourdot/dev.sh --restart
+
+[Desktop Action Stop]
+Name=Stop dev server
+Exec=/home/glade/Development/Apps/Sourdot/dev.sh --stop

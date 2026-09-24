@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/gladelynch/sourdot/internal/applog"
 	"github.com/gladelynch/sourdot/internal/core"
 	"github.com/gladelynch/sourdot/internal/godot/install"
 	"github.com/gladelynch/sourdot/internal/godot/release"
@@ -26,6 +26,7 @@ import (
 type App struct {
 	ctx context.Context
 
+	log            *applog.Logger
 	db             *store.DB
 	dataDir        string
 	versionManager *core.VersionManager
@@ -33,8 +34,22 @@ type App struct {
 }
 
 // NewApp creates a new App application struct.
-func NewApp() *App {
-	return &App{}
+func NewApp(log *applog.Logger) *App {
+	return &App{log: log}
+}
+
+// logErr records an error on its way back to the frontend and returns it
+// unchanged, so bindings stay one-liners.
+//
+// Every binding below hands its error straight to JS, where it becomes an
+// alert() string and nothing else -- so without this the interesting half
+// of every failure (which call, what the wrapped cause was) only ever
+// existed in a dialog the user had already dismissed.
+func (a *App) logErr(op string, err error) error {
+	if err != nil {
+		a.log.Errorf("%s: %v", op, err)
+	}
+	return err
 }
 
 // Emit implements core.EventSink by forwarding to the Wails runtime.
@@ -60,13 +75,13 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	if err := db.EnsureSchemaVersion(); err != nil {
-		log.Printf("failed to stamp schema version: %v", err)
+		a.log.Errorf("failed to stamp schema version: %v", err)
 	}
 	a.db = db
 
 	settings, err := store.LoadSettings(dir)
 	if err != nil {
-		log.Printf("failed to load settings, using defaults: %v", err)
+		a.log.Errorf("failed to load settings, using defaults: %v", err)
 		settings = store.DefaultSettings()
 	}
 
@@ -89,7 +104,7 @@ func (a *App) startup(ctx context.Context) {
 // trigger is mundane: a second copy of Sourdot finding the BoltDB file
 // already locked.
 func (a *App) fatal(message string, err error) {
-	log.Printf("%s: %v", message, err)
+	a.log.Errorf("%s: %v", message, err)
 	_, _ = wailsruntime.MessageDialog(a.ctx, wailsruntime.MessageDialogOptions{
 		Type:    wailsruntime.ErrorDialog,
 		Title:   "Sourdot can't start",
@@ -113,9 +128,10 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 func (a *App) shutdown(ctx context.Context) {
 	if a.db != nil {
 		if err := a.db.Close(); err != nil {
-			log.Printf("failed to close store: %v", err)
+			a.log.Errorf("failed to close store: %v", err)
 		}
 	}
+	a.log.Printf("Sourdot shutting down")
 }
 
 // AppVersion is Sourdot's own version string. v1 has no release/tagging
@@ -144,18 +160,21 @@ func (a *App) Ping() PingResult {
 // alpha and dev -- grouped into version series for the Versions page,
 // served from the local cache when it's fresh.
 func (a *App) ListAvailableVersions() ([]release.SeriesGroup, error) {
-	return a.versionManager.ListAvailableGrouped(a.ctx)
+	groups, err := a.versionManager.ListAvailableGrouped(a.ctx)
+	return groups, a.logErr("ListAvailableVersions", err)
 }
 
 // RefreshAvailableVersions is ListAvailableVersions with a forced refetch,
 // behind the Versions page's Refresh button.
 func (a *App) RefreshAvailableVersions() ([]release.SeriesGroup, error) {
-	return a.versionManager.RefreshAvailableGrouped(a.ctx)
+	groups, err := a.versionManager.RefreshAvailableGrouped(a.ctx)
+	return groups, a.logErr("RefreshAvailableVersions", err)
 }
 
 // ListInstalledVersions returns every version currently installed on disk.
 func (a *App) ListInstalledVersions() ([]install.InstalledVersion, error) {
-	return a.versionManager.ListInstalled()
+	installed, err := a.versionManager.ListInstalled()
+	return installed, a.logErr("ListInstalledVersions", err)
 }
 
 // InstallVersion downloads and installs the release tagged tagName, in the
@@ -168,16 +187,18 @@ func (a *App) ListInstalledVersions() ([]install.InstalledVersion, error) {
 // round-trip a struct it can't fully see: the catalog it holds is trimmed
 // for size, and the backend re-resolves the complete record here.
 func (a *App) InstallVersion(tagName string, isMono bool) (install.InstalledVersion, error) {
+	a.log.Printf("InstallVersion: tag=%s mono=%t", tagName, isMono)
 	rel, err := a.versionManager.FindRelease(a.ctx, tagName)
 	if err != nil {
-		return install.InstalledVersion{}, err
+		return install.InstalledVersion{}, a.logErr("InstallVersion", err)
 	}
-	return a.versionManager.InstallVersion(a.ctx, rel, isMono)
+	iv, err := a.versionManager.InstallVersion(a.ctx, rel, isMono)
+	return iv, a.logErr("InstallVersion", err)
 }
 
 // RemoveVersion deletes an installed version's files and its store record.
 func (a *App) RemoveVersion(id string) error {
-	return a.versionManager.RemoveVersion(id)
+	return a.logErr("RemoveVersion", a.versionManager.RemoveVersion(id))
 }
 
 // GetDefaultVersion returns the InstalledVersion.ID used to resolve
@@ -185,7 +206,7 @@ func (a *App) RemoveVersion(id string) error {
 func (a *App) GetDefaultVersion() (string, error) {
 	settings, err := store.LoadSettings(a.dataDir)
 	if err != nil {
-		return "", err
+		return "", a.logErr("GetDefaultVersion", err)
 	}
 	return settings.DefaultVersionID, nil
 }
@@ -198,7 +219,7 @@ func (a *App) SetDefaultVersion(id string) error {
 		settings = store.DefaultSettings()
 	}
 	settings.DefaultVersionID = id
-	return store.SaveSettings(a.dataDir, settings)
+	return a.logErr("SetDefaultVersion", store.SaveSettings(a.dataDir, settings))
 }
 
 // PickAndAddProject opens a native folder picker and, if the user selects
@@ -209,42 +230,60 @@ func (a *App) PickAndAddProject() (*project.Project, error) {
 		Title: "Select a Godot project folder",
 	})
 	if err != nil {
-		return nil, err
+		return nil, a.logErr("PickAndAddProject", err)
 	}
 	if dir == "" {
 		return nil, nil // user cancelled
 	}
 	proj, err := a.projectManager.AddProject(dir)
 	if err != nil {
-		return nil, err
+		return nil, a.logErr("PickAndAddProject("+dir+")", err)
 	}
 	return &proj, nil
 }
 
 // ListProjects returns every tracked project.
 func (a *App) ListProjects() ([]project.Project, error) {
-	return a.projectManager.ListProjects()
+	projects, err := a.projectManager.ListProjects()
+	return projects, a.logErr("ListProjects", err)
 }
 
 // RemoveProject stops tracking a project (never touches its files on disk).
 func (a *App) RemoveProject(id string) error {
-	return a.projectManager.RemoveProject(id)
+	return a.logErr("RemoveProject", a.projectManager.RemoveProject(id))
 }
 
 // SetFavorite toggles a project's favorite flag.
 func (a *App) SetFavorite(id string, favorite bool) (project.Project, error) {
-	return a.projectManager.SetFavorite(id, favorite)
+	proj, err := a.projectManager.SetFavorite(id, favorite)
+	return proj, a.logErr("SetFavorite", err)
 }
 
 // SetTags replaces a project's tag list.
 func (a *App) SetTags(id string, tags []string) (project.Project, error) {
-	return a.projectManager.SetTags(id, tags)
+	proj, err := a.projectManager.SetTags(id, tags)
+	return proj, a.logErr("SetTags", err)
 }
 
-// SetPinnedVersion sets (or, with versionID "", clears) a project's
-// explicit UI pin.
-func (a *App) SetPinnedVersion(id, versionID string) (project.Project, error) {
-	return a.projectManager.SetPinnedVersion(id, versionID)
+// SetVersionMode switches how a project picks its editor. mode is one of
+// "project", "default", or "pinned"; versionID is required for "pinned"
+// and ignored otherwise.
+func (a *App) SetVersionMode(id, mode, versionID string) (project.Project, error) {
+	proj, err := a.projectManager.SetVersionMode(id, mode, versionID)
+	return proj, a.logErr(fmt.Sprintf("SetVersionMode(mode=%s, version=%s)", mode, versionID), err)
+}
+
+// InstallForProject fetches the Godot build a project resolves to, without
+// launching it. This is what the Projects page's "Install it" button calls
+// when a row reports the version it needs isn't on disk; ProjectManager has
+// had the method since the remediation workflow landed, but it was never
+// bound, so the button failed with "not a function" before reaching Go.
+func (a *App) InstallForProject(id string) (install.InstalledVersion, error) {
+	iv, err := a.projectManager.InstallForProject(a.ctx, id)
+	if err == nil {
+		a.log.Printf("InstallForProject: installed %s for project %s", iv.ID, id)
+	}
+	return iv, a.logErr("InstallForProject", err)
 }
 
 // OpenProject resolves and (auto-installing if needed) launches the
@@ -253,7 +292,10 @@ func (a *App) SetPinnedVersion(id, versionID string) (project.Project, error) {
 // independently of Sourdot.
 func (a *App) OpenProject(id string) (install.InstalledVersion, error) {
 	iv, _, err := a.projectManager.OpenProject(a.ctx, id)
-	return iv, err
+	if err == nil {
+		a.log.Printf("OpenProject: launched %s for project %s", iv.ID, id)
+	}
+	return iv, a.logErr("OpenProject", err)
 }
 
 // HasGitHubToken reports whether a GitHub PAT is currently saved, without
@@ -261,7 +303,7 @@ func (a *App) OpenProject(id string) (install.InstalledVersion, error) {
 func (a *App) HasGitHubToken() (bool, error) {
 	settings, err := store.LoadSettings(a.dataDir)
 	if err != nil {
-		return false, err
+		return false, a.logErr("HasGitHubToken", err)
 	}
 	return settings.GitHubToken != "", nil
 }
@@ -276,7 +318,7 @@ func (a *App) SetGitHubToken(token string) error {
 	}
 	settings.GitHubToken = token
 	if err := store.SaveSettings(a.dataDir, settings); err != nil {
-		return err
+		return a.logErr("SetGitHubToken", err)
 	}
 	a.versionManager.UpdateGitHubToken(token)
 	return nil
@@ -302,13 +344,13 @@ var browserAllowedHosts = map[string]bool{
 func (a *App) OpenURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return fmt.Errorf("not a valid URL: %w", err)
+		return a.logErr("OpenURL", fmt.Errorf("not a valid URL: %w", err))
 	}
 	if u.Scheme != "https" {
-		return fmt.Errorf("refusing to open non-https URL %q", rawURL)
+		return a.logErr("OpenURL", fmt.Errorf("refusing to open non-https URL %q", rawURL))
 	}
 	if !browserAllowedHosts[u.Hostname()] {
-		return fmt.Errorf("refusing to open URL outside Godot's documented domains: %q", u.Hostname())
+		return a.logErr("OpenURL", fmt.Errorf("refusing to open URL outside Godot's documented domains: %q", u.Hostname()))
 	}
 	wailsruntime.BrowserOpenURL(a.ctx, u.String())
 	return nil
@@ -325,5 +367,31 @@ func (a *App) OpenDataDir() error {
 	default:
 		cmd = exec.Command("xdg-open", a.dataDir)
 	}
-	return cmd.Start()
+	return a.logErr("OpenDataDir", cmd.Start())
+}
+
+// LogFrontend records a message from the webview in Sourdot's log file.
+//
+// The frontend's own console goes to the WebKit inspector, which a built
+// app doesn't have -- so before this, every caught JS error and every
+// unhandled rejection was discarded the moment its alert() was dismissed.
+// Routing them here puts frontend and backend failures in one file, in
+// order, which is the only way to see that a JS TypeError and the Go call
+// it came from are the same incident.
+func (a *App) LogFrontend(level, message string) {
+	switch level {
+	case "error":
+		a.log.Errorf("[webview] %s", message)
+	case "warn":
+		a.log.Warning(fmt.Sprintf("[webview] %s", message))
+	default:
+		a.log.Printf("[webview] %s", message)
+	}
+}
+
+// GetLogPath returns the absolute path of the log file, or "" when Sourdot
+// is running without one. The Settings view shows it so a user filing a bug
+// knows what to attach.
+func (a *App) GetLogPath() string {
+	return a.log.Path()
 }

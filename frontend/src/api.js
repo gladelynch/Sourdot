@@ -1,8 +1,11 @@
 // Thin wrapper over Wails' runtime-injected window.go.main.App.* bindings.
-// No codegen/build step involved — Wails injects these functions itself at
-// runtime, so this file just gives the rest of the frontend friendlier names
-// and a single place to adapt if the Go-side method signatures change.
-const api = {
+//
+// Wails injects these functions itself at runtime, so nothing here is
+// generated -- this file just gives the rest of the frontend friendlier
+// names and a single place to adapt if the Go-side method signatures
+// change. That indirection is the reason the SetVersionMode rename below
+// only had to happen once.
+export const api = {
     ping() {
         return window.go.main.App.Ping();
     },
@@ -44,8 +47,11 @@ const api = {
     setTags(id, tags) {
         return window.go.main.App.SetTags(id, tags);
     },
+    // The Go binding is SetVersionMode; this called SetProjectVersion, which
+    // has never existed on the App struct, so every version change from the
+    // Projects page threw "not a function" before it reached the backend.
     setProjectVersion(id, mode, versionId) {
-        return window.go.main.App.SetProjectVersion(id, mode, versionId || "");
+        return window.go.main.App.SetVersionMode(id, mode, versionId || "");
     },
     installForProject(id) {
         return window.go.main.App.InstallForProject(id);
@@ -62,6 +68,9 @@ const api = {
     },
     openDataDir() {
         return window.go.main.App.OpenDataDir();
+    },
+    getLogPath() {
+        return window.go.main.App.GetLogPath();
     },
     openURL(url) {
         return window.go.main.App.OpenURL(url);
