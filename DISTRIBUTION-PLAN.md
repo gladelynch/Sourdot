@@ -2,7 +2,7 @@
 
 ## Context
 
-Sourdot is currently a dev-only portable build: `wails build` drops a binary in `build/bin/`, `dev.sh` and `Sourdot-Dev.desktop` are hardcoded to `/home/bloo`, there are no tags, and `AppVersion` is a hand-bumped `const` in `app.go:124`. CI compiles on three OSes but publishes nothing. STATUS.md lists distribution and auto-update as the blockers to public release.
+Sourdot is currently a dev-only portable build: `wails build` drops a binary in `build/bin/`, `dev.sh` and `Sourdot-Dev.desktop` are a dev-only launcher, there are no tags, and `AppVersion` is a hand-bumped `const` in `app.go:124`. CI compiles on three OSes but publishes nothing. STATUS.md lists distribution and auto-update as the blockers to public release.
 
 Goal: real installers for **Linux + Windows**, published from a **public GitHub repo** on a tag push, with the app **checking for updates on launch, prompting, and self-replacing** — payloads authenticated by an **Ed25519 signature** whose private key lives in GitHub Actions so releasing stays a one-command, set-and-forget operation. macOS is explicitly out of scope (no Apple Developer account); keep its CI compile check only.
 

@@ -53,28 +53,18 @@ both.
 
 ## The dev loop
 
-`./dev.sh` adds the build tag for you and runs the dev server **detached** —
-no terminal window to keep open, and nothing tying up the shell you launched
-it from. It starts the frontend bundler in watch mode alongside `wails dev`,
-so editing `frontend/src` re-bundles and reloads the window; `--stop` takes
-both down together. `Sourdot-Dev.desktop` runs the same script, so
-double-clicking the launcher (or right-clicking it for *Restart* / *Stop*)
-works the same way.
+Double-click `Sourdot-Dev.desktop` in your file manager, or run `./dev.sh`
+from a terminal. Either way you get a terminal window running `wails dev`
+with the frontend bundler watching alongside it: editing Go rebuilds the
+backend, editing `frontend/src` re-bundles and reloads the window. Ctrl-C or
+closing the window stops everything.
 
-```
-./dev.sh              # start detached
-./dev.sh --status     # running? where are the logs?
-./dev.sh --log        # follow the build output
-./dev.sh --restart    # after a change the watcher didn't pick up
-./dev.sh --stop
-./dev.sh --fg         # foreground instead, Ctrl-C to stop
-./dev.sh --build      # production build, then launch the binary
-```
-
-Nothing is lost by having no tty: the app's own output already goes to
-`sourdot.log` in the config directory (see `internal/applog`), and `dev.sh`
-sends the build output `wails dev` writes — compile errors, reload notices —
-to `dev.log` beside it, keeping one previous run as `dev.log.1`.
+`dev.sh` adds the Linux build tag itself, finds Go in the usual install
+locations even when the desktop session's `PATH` lacks it, and installs the
+wails CLI (at the version `go.mod` pins) on first run. The desktop entry
+locates `dev.sh` relative to itself, so it works wherever the repo is cloned.
+The app's own output also goes to `sourdot.log` in the config directory (see
+`internal/applog`).
 
 ## The frontend
 

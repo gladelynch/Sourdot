@@ -4,18 +4,11 @@ Name=Sourdot (dev)
 GenericName=Godot Version Manager
 Comment=Install, switch and launch Godot Engine versions — dev mode with hot reloading
 Keywords=Godot;GodotEngine;Godot4;Godot3;engine;version;manager;gamedev;game;launcher;
-Exec=/home/glade/Development/Apps/Sourdot/dev.sh
-Path=/home/glade/Development/Apps/Sourdot
-Icon=/home/glade/Development/Apps/Sourdot/build/appicon.png
-Terminal=false
+# %k is this file's own path, so dev.sh is found next to it wherever the repo
+# is cloned -- no absolute paths. Desktop entries can't express a relative
+# Icon=, so it uses a stock theme icon.
+Exec=bash -c "exec \\"\\$(dirname \\"\\$1\\")/dev.sh\\" --hold" sourdot %k
+Icon=applications-development
+Terminal=true
 Categories=Development;IDE;
 StartupWMClass=sourdot
-Actions=Restart;Stop;
-
-[Desktop Action Restart]
-Name=Restart dev server
-Exec=/home/glade/Development/Apps/Sourdot/dev.sh --restart
-
-[Desktop Action Stop]
-Name=Stop dev server
-Exec=/home/glade/Development/Apps/Sourdot/dev.sh --stop
