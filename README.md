@@ -145,11 +145,31 @@ internal/godot/      Release discovery (GitHub API) + install (download/extract/
 internal/project/    Project folder scanning, project.godot parsing, pin-file resolution.
 internal/store/      Settings (JSON) + BoltDB (versions/projects/release cache).
 internal/platform/   Per-OS paths and Launch (opens the Godot editor for a project).
+internal/shim/       The generated `godot` command-line launcher (see below).
 frontend/src/        Preact frontend (see "The frontend"); store.js owns all backend state.
 frontend/public/     index.html, CSS and assets, copied into the bundle verbatim.
 frontend/vendor/     Preact, vendored as plain ESM — no npm.
 tools/frontendbuild/ esbuild-in-Go bundler: `go run ./tools/frontendbuild`.
 ```
+
+## The `godot` launcher
+
+Sourdot keeps a `godot` launcher in `bin/` under its config directory
+(`~/.config/sourdot/bin` on Linux). Put that directory on PATH and `godot`
+run anywhere inside a tracked project starts the build Sourdot would open
+that project with, so C# test runners, CI scripts and terminals pick up the
+right engine without a hard-coded path. Outside any project it runs the
+default version. Settings shows the exact lines for your shell, including
+`GODOT_BIN` for runners such as GdUnit4 that read it. Sourdot never edits
+your shell profile itself.
+
+The launcher is a generated script, not a live query. The GUI holds the
+database lock while it's open, so the launcher can't read it. Instead,
+each project's answer is written into the script, which is rewritten
+whenever the project list refreshes. It refuses to run a project in a build
+that would upgrade it, a project whose version isn't installed, and a
+`project.godot` Sourdot isn't tracking, rather than falling back to another
+build.
 
 ## Testing
 

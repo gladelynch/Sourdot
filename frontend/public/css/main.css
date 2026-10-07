@@ -673,6 +673,22 @@ body {
  * Chrome honoured these declarations. Resetting the appearance and drawing
  * our own chevron makes the two builds render identically. */
 .version-select,
+.settings-help {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.settings-help code {
+    font-size: 12px;
+}
+
+.settings-error {
+    margin: 0;
+    font-size: 13px;
+    color: var(--danger);
+}
+
 #default-version-select {
     -webkit-appearance: none;
     appearance: none;

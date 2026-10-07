@@ -3,6 +3,7 @@ package install
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -100,4 +101,40 @@ func DirSize(root string) (int64, error) {
 		return nil
 	})
 	return total, err
+}
+
+// CLIExecutable returns the file to run for command-line use of the build
+// whose BinaryPath is binaryPath -- which isn't always BinaryPath itself:
+//
+//   - On macOS BinaryPath is the .app bundle, and a bundle can't be exec'd.
+//     Launch goes through `open`, but that detaches from the terminal and
+//     drops the exit code a test runner needs, so this reaches in for the
+//     executable inside instead.
+//   - On Windows BinaryPath is the GUI-subsystem .exe, whose output never
+//     reaches the console that started it. Godot ships a _console.exe
+//     wrapper beside it for exactly this, so that's preferred when present.
+//
+// NOTE: the macOS and Windows cases follow Godot's documented layout but
+// haven't been run on real hardware yet, like the rest of M6.
+func CLIExecutable(binaryPath, osName string) string {
+	switch osName {
+	case "macos":
+		macOSDir := filepath.Join(binaryPath, "Contents", "MacOS")
+		if _, err := os.Stat(filepath.Join(macOSDir, "Godot")); err == nil {
+			return filepath.Join(macOSDir, "Godot")
+		}
+		if entries, err := os.ReadDir(macOSDir); err == nil {
+			for _, e := range entries {
+				if !e.IsDir() {
+					return filepath.Join(macOSDir, e.Name())
+				}
+			}
+		}
+	case "windows":
+		console := strings.TrimSuffix(binaryPath, filepath.Ext(binaryPath)) + "_console.exe"
+		if _, err := os.Stat(console); err == nil {
+			return console
+		}
+	}
+	return binaryPath
 }

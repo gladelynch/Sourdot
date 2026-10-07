@@ -29,6 +29,7 @@ const loaders = {
     status: () => api.ping(),
     logPath: () => api.getLogPath(),
     hasToken: () => api.hasGitHubToken(),
+    shimInfo: () => api.getShimInfo(),
 };
 
 const empty = {
@@ -39,6 +40,7 @@ const empty = {
     status: null,
     logPath: "",
     hasToken: false,
+    shimInfo: null,
 };
 
 const cache = { ...empty };

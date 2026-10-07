@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"sync"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -16,6 +19,7 @@ import (
 	"github.com/gladelynch/sourdot/internal/godot/release"
 	"github.com/gladelynch/sourdot/internal/platform"
 	"github.com/gladelynch/sourdot/internal/project"
+	"github.com/gladelynch/sourdot/internal/shim"
 	"github.com/gladelynch/sourdot/internal/store"
 )
 
@@ -31,6 +35,10 @@ type App struct {
 	dataDir        string
 	versionManager *core.VersionManager
 	projectManager *core.ProjectManager
+
+	binDir  string
+	shimMu  sync.Mutex // guards shimErr; bindings run concurrently
+	shimErr error      // the last launcher write's failure, shown in Settings
 }
 
 // NewApp creates a new App application struct.
@@ -93,6 +101,16 @@ func (a *App) startup(ctx context.Context) {
 
 	a.versionManager = core.NewVersionManager(db, a, versionsDir, settings.GitHubToken)
 	a.projectManager = core.NewProjectManager(db, a, a.versionManager, dir)
+
+	// The launcher isn't needed to run the app, so failing to set it up is
+	// logged and shown in Settings rather than fatal.
+	if a.binDir, err = platform.BinDir(); err != nil {
+		a.setShimErr(fmt.Errorf("creating the launcher directory: %w", err))
+	} else if projects, err := a.projectManager.ListProjects(); err != nil {
+		a.setShimErr(err)
+	} else {
+		a.writeShim(projects)
+	}
 }
 
 // fatal reports an unrecoverable startup failure and exits.
@@ -243,9 +261,69 @@ func (a *App) PickAndAddProject() (*project.Project, error) {
 }
 
 // ListProjects returns every tracked project.
+//
+// It also rewrites the `godot` launcher, since this is where every project's
+// resolution gets recomputed. That covers every change that can alter one:
+// each store.js action that does (installing or removing a version, a new
+// default, a pin, adding or removing a project) already invalidates
+// "projects", which lands here.
 func (a *App) ListProjects() ([]project.Project, error) {
 	projects, err := a.projectManager.ListProjects()
+	if err == nil {
+		a.writeShim(projects)
+	}
 	return projects, a.logErr("ListProjects", err)
+}
+
+func (a *App) writeShim(projects []project.Project) {
+	if a.binDir == "" {
+		return // BinDir failed at startup; that error is already recorded
+	}
+	_, err := a.projectManager.WriteShim(a.binDir, projects)
+	a.setShimErr(err)
+}
+
+func (a *App) setShimErr(err error) {
+	if err != nil {
+		a.log.Errorf("writing the godot launcher: %v", err)
+	}
+	a.shimMu.Lock()
+	a.shimErr = err
+	a.shimMu.Unlock()
+}
+
+// ShimInfo describes the `godot` launcher for the Settings view.
+type ShimInfo struct {
+	Dir    string     `json:"dir"`
+	Path   string     `json:"path"`
+	Setup  shim.Setup `json:"setup"`
+	OnPath bool       `json:"onPath"` // Sourdot's own PATH has Dir; a false here is no proof a terminal lacks it, since a desktop launch skips shell profiles
+	Error  string     `json:"error"`
+}
+
+// GetShimInfo reports where the launcher lives and the lines that put it
+// on PATH for the user's shell.
+func (a *App) GetShimInfo() ShimInfo {
+	home, _ := os.UserHomeDir()
+	info := ShimInfo{
+		Dir:    a.binDir,
+		Path:   filepath.Join(a.binDir, shim.FileName(runtime.GOOS)),
+		Setup:  shim.SetupFor(runtime.GOOS, os.Getenv("SHELL"), a.binDir, home),
+		OnPath: slices.Contains(filepath.SplitList(os.Getenv("PATH")), a.binDir),
+	}
+	a.shimMu.Lock()
+	if a.shimErr != nil {
+		info.Error = a.shimErr.Error()
+	}
+	a.shimMu.Unlock()
+	return info
+}
+
+// CopyText puts text on the system clipboard. The webview's own
+// navigator.clipboard isn't dependable under WebKitGTK, so the Settings
+// view's copy buttons come through here.
+func (a *App) CopyText(text string) error {
+	return a.logErr("CopyText", wailsruntime.ClipboardSetText(a.ctx, text))
 }
 
 // RemoveProject stops tracking a project (never touches its files on disk).

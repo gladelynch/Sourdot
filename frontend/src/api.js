@@ -75,4 +75,10 @@ export const api = {
     openURL(url) {
         return window.go.main.App.OpenURL(url);
     },
+    getShimInfo() {
+        return window.go.main.App.GetShimInfo();
+    },
+    copyText(text) {
+        return window.go.main.App.CopyText(text);
+    },
 };

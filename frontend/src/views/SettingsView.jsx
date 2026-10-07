@@ -1,7 +1,7 @@
 // Settings view: default version for unpinned projects, an optional GitHub
 // PAT (raises the 60/hr unauthenticated API rate limit), the data
-// directory (with a reveal-in-file-manager action), and basic backend
-// status/about info.
+// directory (with a reveal-in-file-manager action), setup for the `godot`
+// command-line launcher, and basic backend status/about info.
 import { useState } from "preact/hooks";
 import { api } from "../api.js";
 import { actions } from "../store.js";
@@ -20,6 +20,7 @@ export function SettingsView() {
     const installed = useResource("installed");
     const defaultID = useResource("defaultVersionID");
     const hasToken = useResource("hasToken");
+    const shimInfo = useResource("shimInfo");
 
     const [token, setToken] = useState("");
 
@@ -103,6 +104,8 @@ export function SettingsView() {
                 </div>
             </div>
 
+            {shimInfo && <LauncherPanel info={shimInfo} />}
+
             <div class="settings-panel">
                 <dl class="about-list">
                     <dt>Backend status</dt>
@@ -119,6 +122,52 @@ export function SettingsView() {
             </div>
         </section>
     );
+}
+
+// The `godot` launcher: Sourdot keeps it in its bin directory, and once that
+// is on PATH, `godot` runs whichever build the surrounding project uses --
+// so C# test runners and scripts get the right engine with no hard-coded
+// path. Sourdot never edits shell profiles itself; it shows the lines.
+function LauncherPanel({ info }) {
+    const { setup } = info;
+    const where = setup.profile
+        ? `Add these lines to ${setup.profile}, then open a new terminal:`
+        : "Run these once in PowerShell, then open a new terminal:";
+
+    return (
+        <div class="settings-panel">
+            <div class="settings-field">
+                <span class="settings-field-label">Command-line launcher</span>
+                <p class="muted settings-help">
+                    Put Sourdot's <code>godot</code> on your PATH and running <code>godot</code> inside a
+                    tracked project uses that project's version; outside any project it uses the default
+                    version. <code>GODOT_BIN</code> points test runners such as GdUnit4 at the same launcher.
+                    {info.onPath && " Sourdot's own PATH already includes it."}
+                </p>
+                {info.error && <p class="settings-error">Couldn't update the launcher: {info.error}</p>}
+            </div>
+
+            <div class="settings-field">
+                <span class="settings-field-label">{where}</span>
+                {setup.lines.map((line) => (
+                    <div class="settings-field-row" key={line}>
+                        <code>{line}</code>
+                        <button class="btn btn-sm" type="button" onClick={() => copy(line)}>
+                            Copy
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+async function copy(text) {
+    try {
+        await api.copyText(text);
+    } catch (err) {
+        failAlert("Couldn't copy to the clipboard", err);
+    }
 }
 
 // Handed to the OS browser rather than navigated to in-app; the Go side

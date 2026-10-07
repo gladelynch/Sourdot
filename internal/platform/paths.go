@@ -39,3 +39,17 @@ func VersionsDir() (string, error) {
 	}
 	return dir, nil
 }
+
+// BinDir returns the directory Sourdot writes its `godot` launcher into
+// (see internal/shim) -- the one directory a user adds to PATH.
+func BinDir() (string, error) {
+	base, err := ConfigDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(base, "bin")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
