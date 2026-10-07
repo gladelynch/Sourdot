@@ -14,7 +14,8 @@
 #
 # Usage:
 #   ./dev.sh              # run it; Ctrl-C to stop
-#   ./dev.sh --gui ...    # no terminal: output goes to dev.log, and failures
+#   ./dev.sh --gui ...    # no terminal: output goes to dev.log, a console
+#                         # window shows it until the app opens, and failures
 #                         # pop up a dialog (Sourdot-Dev.desktop passes this)
 #
 # Any other arguments are passed straight through to `wails dev`.
@@ -40,33 +41,121 @@ if ((GUI)) && [[ "$(ps -o pgid= -p $$ | tr -d ' ')" != "$$" ]]; then
 	exec setsid "$SELF" --gui "$@"
 fi
 
-# With no terminal there's nowhere for output to go, so keep it in dev.log,
-# next to the database and sourdot.log (mirrors platform.ConfigDir()).
-if ((GUI)); then
-	LOG="${XDG_CONFIG_HOME:-$HOME/.config}/sourdot/dev.log"
-	mkdir -p "$(dirname "$LOG")"
-	exec >"$LOG" 2>&1
-fi
+# dev.log and dev.pid live next to the database and sourdot.log (mirrors
+# platform.ConfigDir()).
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/sourdot"
+mkdir -p "$CONFIG"
+PIDFILE="$CONFIG/dev.pid"
+LOG="$CONFIG/dev.log"
+
+# plain strips the colour codes wails puts in its output, and squeezes the
+# long runs of spaces its spinner leaves behind, for showing in a dialog.
+plain() {
+	sed -u -E 's/\x1b\[[0-9;]*[A-Za-z]//g; s/ {8,}/ /g'
+}
+
+# dialog shows a message box: `dialog error TEXT`, or `dialog question TEXT`,
+# whose exit status is the answer (no dialog tool means "no").
+dialog() {
+	local kind="$1" text="$2"
+	if command -v zenity >/dev/null 2>&1; then
+		zenity "--$kind" --no-markup --title "Sourdot (dev)" --width 700 --text "$text" 2>/dev/null
+	elif command -v kdialog >/dev/null 2>&1; then
+		[[ "$kind" == question ]] && kind=yesno
+		kdialog --title "Sourdot (dev)" "--$kind" "$text"
+	else
+		command -v notify-send >/dev/null 2>&1 && notify-send -u critical "Sourdot (dev)" "$text"
+		return 1
+	fi
+}
+
+# The console is a live view of dev.log, shown under --gui while there's
+# nothing else on screen: installing wails the first time, then building. It
+# closes itself once the app window opens. Hide just closes it; Stop, or
+# closing the window, cancels the launch. Without zenity there's no live view,
+# only a notification.
+CONSOLE=
+console_open() {
+	if ! command -v zenity >/dev/null 2>&1; then
+		command -v notify-send >/dev/null 2>&1 &&
+			notify-send "Sourdot (dev)" "Starting; the app will open when it's built. Output: $LOG"
+		return
+	fi
+	(
+		# Not a pipeline: `wait` on one waits for all of it, and tail never ends.
+		zenity --text-info --auto-scroll --title "Sourdot (dev): starting" \
+			--width 900 --height 500 --ok-label Hide --cancel-label Stop \
+			< <(tail -n +1 -F "$LOG" 2>/dev/null | plain) 2>/dev/null &
+		zenity=$!
+		trap 'kill "$zenity" 2>/dev/null; exit 0' TERM
+		wait "$zenity"
+		(($? == 1)) && kill -TERM 0
+	) &
+	CONSOLE=$!
+}
+console_close() {
+	[[ -n "$CONSOLE" ]] && kill "$CONSOLE" 2>/dev/null
+	CONSOLE=
+}
 
 # fail reports an error and exits. With --gui nobody is watching the output,
 # so it also shows a dialog with the end of the log, which is where the
 # compiler error will be.
 fail() {
+	local output=
+	((GUI)) && output="$(tail -n 25 "$LOG" | plain)"
 	echo >&2
 	echo "error: $*" >&2
 	if ((GUI)); then
-		local msg
-		msg="$*"$'\n\n'"$(tail -n 20 "$LOG")"$'\n\n'"Full output: $LOG"
-		if command -v zenity >/dev/null 2>&1; then
-			zenity --error --no-markup --title "Sourdot (dev)" --width 700 --text "$msg"
-		elif command -v kdialog >/dev/null 2>&1; then
-			kdialog --title "Sourdot (dev)" --error "$msg"
-		elif command -v notify-send >/dev/null 2>&1; then
-			notify-send -u critical "Sourdot (dev)" "$*. See $LOG"
-		fi
+		console_close
+		dialog error "$*"$'\n\n'"${output:+$output$'\n\n'}Full output: $LOG"
 	fi
 	exit 1
 }
+
+# --- One at a time ------------------------------------------------------------
+# A second copy would fight the first over the dev server port. A --gui copy
+# has no window of its own once the console is hidden, so if one gets stuck
+# (the app crashed, and wails dev is waiting for a fix to rebuild) there's
+# nothing to close; offer to stop it instead.
+OTHER="$(cat "$PIDFILE" 2>/dev/null)"
+if [[ -n "$OTHER" && "$OTHER" != "$$" ]] && kill -0 "$OTHER" 2>/dev/null &&
+	ps -o args= -p "$OTHER" | grep -q 'dev\.sh'; then
+	msg="Sourdot (dev) is already running (pid $OTHER)."
+	if ((GUI)) && [[ "$(ps -o pgid= -p "$OTHER" | tr -d ' ')" == "$OTHER" ]]; then
+		dialog question "$msg"$'\n\n'"Stop it and start again?" || exit 0
+		kill -TERM -- "-$OTHER" 2>/dev/null
+		for _ in {1..40}; do
+			kill -0 "$OTHER" 2>/dev/null || break
+			sleep 0.25
+		done
+	else
+		echo "error: $msg Stop it first." >&2
+		((GUI)) && dialog error "$msg Stop it first."
+		exit 1
+	fi
+fi
+echo $$ >"$PIDFILE"
+
+# When this script exits, for any reason, take everything it started down with
+# it: the console, the frontend watcher, wails and the app. `kill 0` signals
+# this script's whole process group; the trap is cleared first so it doesn't
+# run twice. From a terminal that group can include whatever ran this script
+# (make, say), so it's only done once there's something in the background to
+# stop; under --gui the group is always ours (see setsid above).
+STARTED=$GUI
+cleanup() {
+	trap - EXIT INT TERM HUP
+	[[ "$(cat "$PIDFILE" 2>/dev/null)" == "$$" ]] && rm -f "$PIDFILE"
+	((STARTED)) && kill 0 2>/dev/null
+}
+trap cleanup EXIT INT TERM HUP
+
+# With no terminal there's nowhere for output to go, so keep it in dev.log.
+if ((GUI)); then
+	exec >"$LOG" 2>&1
+	console_open
+fi
 
 # --- Toolchain ----------------------------------------------------------------
 # Launched from a desktop entry, PATH is the session's, not your shell's, so
@@ -80,6 +169,25 @@ export PATH
 command -v go >/dev/null 2>&1 ||
 	fail "'go' not found. Install Go (https://go.dev/dl/), then run this again."
 
+# Linux distros that ship only webkit2gtk-4.1 need this build tag; see the
+# Makefile and the README's "Building" section. Windows/macOS don't.
+TAGS=()
+if [[ "$(uname -s)" == "Linux" ]]; then
+	TAGS=(-tags webkit2_41)
+
+	# Wails links against GTK and WebKitGTK through cgo. Without their headers
+	# the build fails deep inside wails dev, so check up front and say what to
+	# install.
+	missing=()
+	command -v gcc >/dev/null 2>&1 || missing+=(gcc)
+	command -v pkg-config >/dev/null 2>&1 || missing+=(pkg-config)
+	for pc in gtk+-3.0 webkit2gtk-4.1; do
+		pkg-config --exists "$pc" 2>/dev/null || missing+=("$pc")
+	done
+	((${#missing[@]} == 0)) ||
+		fail "missing build dependencies: ${missing[*]}."$'\n\n'"Fedora: sudo dnf install -y gtk3-devel webkit2gtk4.1-devel gcc pkgconf-pkg-config"$'\n'"Debian/Ubuntu: sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config"
+fi
+
 # The wails CLI installs to GOBIN (or GOPATH/bin), which may be somewhere
 # other than the defaults above.
 GOBIN="$(go env GOBIN)"
@@ -91,18 +199,10 @@ PATH="$GOBIN:$PATH"
 if ! command -v wails >/dev/null 2>&1; then
 	WAILS_VERSION="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)" ||
 		fail "couldn't read the wails version from go.mod."
-	echo ">>> wails not found; installing $WAILS_VERSION (one-time)"
-	((GUI)) && command -v notify-send >/dev/null 2>&1 &&
-		notify-send "Sourdot (dev)" "Installing the wails CLI (one-time); the app will open when it's done."
-	go install "github.com/wailsapp/wails/v2/cmd/wails@$WAILS_VERSION" ||
-		fail "installing wails failed; see the output above."
-fi
-
-# Linux distros that ship only webkit2gtk-4.1 need this build tag; see the
-# Makefile and the README's "Building" section. Windows/macOS don't.
-TAGS=()
-if [[ "$(uname -s)" == "Linux" ]]; then
-	TAGS=(-tags webkit2_41)
+	echo ">>> wails not found; installing $WAILS_VERSION (one-time, takes a minute or two)"
+	go install -v "github.com/wailsapp/wails/v2/cmd/wails@$WAILS_VERSION" ||
+		fail "installing wails failed; see the output below."
+	echo ">>> wails installed"
 fi
 
 # --- Run ----------------------------------------------------------------------
@@ -110,14 +210,11 @@ fi
 # Build frontend/dist once up front. The watcher would do this itself a moment
 # later, but doing it here means wails dev never starts against a half-written
 # dist, and a syntax error is reported before the window opens.
+echo ">>> building the frontend"
 go run ./tools/frontendbuild ||
-	fail "frontend build failed; fix the errors above and run this again."
+	fail "frontend build failed; fix the errors and run this again."
 
-# When this script exits, for any reason, take the frontend watcher and
-# everything wails started down with it. `kill 0` signals this script's whole
-# process group; the trap is cleared first so it doesn't run twice.
-trap 'trap - EXIT INT TERM HUP; kill 0 2>/dev/null' EXIT INT TERM HUP
-
+STARTED=1
 go run ./tools/frontendbuild -watch &
 
 # -assetdir points the dev server at the on-disk frontend instead of the
@@ -125,5 +222,25 @@ go run ./tools/frontendbuild -watch &
 echo ">>> wails dev ${TAGS[*]} -assetdir frontend/dist $*"
 echo ">>> edit Go files to rebuild, frontend/src to re-bundle; Ctrl-C to stop"
 echo
-wails dev "${TAGS[@]}" -assetdir frontend/dist "$@" ||
-	fail "wails dev exited with an error; see the output above."
+if ! ((GUI)); then
+	wails dev "${TAGS[@]}" -assetdir frontend/dist "$@" ||
+		fail "wails dev exited with an error; see the output above."
+	exit 0
+fi
+
+# wails dev doesn't exit when the first build fails; it waits for a source
+# change to retry. In a terminal that's handy, but here nobody would ever see
+# the error, so watch its output for how the first build went. Failure is
+# checked first: wails prints the dev server URL either way.
+wails dev "${TAGS[@]}" -assetdir frontend/dist "$@" &
+WAILS=$!
+while :; do
+	grep -qF "No version running" "$LOG" &&
+		fail "building the app failed."
+	grep -qF "Using DevServer URL" "$LOG" && break
+	kill -0 "$WAILS" 2>/dev/null || break
+	sleep 0.5
+done
+console_close
+wait "$WAILS" ||
+	fail "wails dev exited with an error."

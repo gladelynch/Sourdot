@@ -53,16 +53,24 @@ both.
 
 ## The dev loop
 
-Double-click `Sourdot-Dev.desktop` in your file manager, or run `./dev.sh`
-from a terminal. Either way you get a terminal window running `wails dev`
-with the frontend bundler watching alongside it: editing Go rebuilds the
-backend, editing `frontend/src` re-bundles and reloads the window. Ctrl-C or
-closing the window stops everything.
+Run `./dev.sh` from a terminal, or double-click `Sourdot-Dev.desktop` in your
+file manager. Either way you get `wails dev` with the frontend bundler
+watching alongside it: editing Go rebuilds the backend, editing
+`frontend/src` re-bundles and reloads the window. Ctrl-C, or closing the app
+window, stops everything.
 
-`dev.sh` adds the Linux build tag itself, finds Go in the usual install
-locations even when the desktop session's `PATH` lacks it, and installs the
-wails CLI (at the version `go.mod` pins) on first run. The desktop entry
-locates `dev.sh` relative to itself, so it works wherever the repo is cloned.
+The desktop entry has no terminal. Instead a console window shows the output
+while the wails CLI installs and the app builds, and closes once the app
+window opens (Stop cancels the launch). A failure pops up a dialog with the
+error, and the full output is in `~/.config/sourdot/dev.log`. Launching again
+while a copy is still running offers to stop the old one.
+
+`dev.sh` adds the Linux build tag itself, checks for the GTK/WebKitGTK
+headers before building and says what to install if they're missing, finds Go
+in the usual install locations even when the desktop session's `PATH` lacks
+it, and installs the wails CLI (at the version `go.mod` pins) on first run.
+The desktop entry locates `dev.sh` relative to itself, so it works wherever
+the repo is cloned.
 The app's own output also goes to `sourdot.log` in the config directory (see
 `internal/applog`).
 
