@@ -19,6 +19,10 @@
 #                         # pop up a dialog (Sourdot-Dev.desktop passes this)
 #
 # Any other arguments are passed straight through to `wails dev`.
+#
+# On Linux it also installs a "Sourdot (dev)" desktop entry and icon under
+# ~/.local/share, so the taskbar shows the app's icon; see "Desktop
+# integration" below.
 
 set -uo pipefail
 
@@ -203,6 +207,41 @@ if ! command -v wails >/dev/null 2>&1; then
 	go install -v "github.com/wailsapp/wails/v2/cmd/wails@$WAILS_VERSION" ||
 		fail "installing wails failed; see the output below."
 	echo ">>> wails installed"
+fi
+
+# --- Desktop integration ------------------------------------------------------
+# Sourdot-Dev.desktop names its icon (Icon=sourdot-dev) rather than giving a
+# path, since it can't know where the repo is. Put the app icon where the
+# desktop looks that name up. "-dev" so it never shadows an installed build's
+# own "sourdot" icon.
+#
+# The taskbar finds a window's icon through an *installed* desktop entry whose
+# StartupWMClass matches the window's app id ("sourdot", see main.go); the
+# copy in the repo isn't one, so Wayland sessions show a generic icon. Install
+# a copy too, with Exec pointing here, since %k would name the copy. Its Icon=
+# is an absolute path as well: a running plasmashell caches failed theme
+# lookups, so a just-installed themed icon wouldn't show until relogin.
+if [[ "$(uname -s)" == "Linux" ]]; then
+	DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
+	ICON_DIR="$DATA/icons/hicolor/scalable/apps"
+	if ! cmp -s build/appicon.svg "$ICON_DIR/sourdot-dev.svg"; then
+		mkdir -p "$ICON_DIR" && cp build/appicon.svg "$ICON_DIR/sourdot-dev.svg"
+		# GTK rescans an icon theme only when the theme directory's own
+		# mtime changes, which adding a file two levels down doesn't do.
+		touch "$DATA/icons/hicolor"
+	fi
+
+	ENTRY="$DATA/applications/sourdot-dev.desktop"
+	entry="$(sed -e '/^#/d' -e "s|^Exec=.*|Exec=\"$PWD/dev.sh\" --gui|" \
+		-e "s|^Icon=.*|Icon=$PWD/build/appicon.svg|" Sourdot-Dev.desktop)"
+	if [[ "$entry" != "$(cat "$ENTRY" 2>/dev/null)" ]]; then
+		mkdir -p "$(dirname "$ENTRY")" && printf '%s\n' "$entry" >"$ENTRY"
+		# KDE reads entries from its sycoca cache, which otherwise refreshes
+		# only after a delay -- possibly after the window is already up.
+		for k in kbuildsycoca6 kbuildsycoca5; do
+			command -v "$k" >/dev/null 2>&1 && { "$k" >/dev/null 2>&1; break; }
+		done
+	fi
 fi
 
 # --- Run ----------------------------------------------------------------------

@@ -7,6 +7,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 
@@ -73,6 +74,15 @@ func main() {
 			DisableWindowIcon:    false,
 			// DisableFramelessWindowDecorations: false,
 			WebviewUserDataPath: "",
+		},
+		// Linux: ProgramName is the window's app id (WM_CLASS on X11). Desktops
+		// match it against StartupWMClass to find the .desktop entry -- and so
+		// the taskbar icon -- so pin it rather than inheriting the binary name,
+		// which a renamed or per-platform build wouldn't keep. Icon covers
+		// sessions that read the window's own icon instead.
+		Linux: &linux.Options{
+			Icon:        icon,
+			ProgramName: "sourdot",
 		},
 		// Mac platform specific options
 		Mac: &mac.Options{

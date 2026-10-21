@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Sourdot app icon: a sourdough boule wearing Godot's eyes. Edit the
+       copy in build/ and run `make icons`; every other icon is generated. -->
+  <defs>
+    <radialGradient id="crust" cx="0.42" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#f3c27a"/>
+      <stop offset="0.55" stop-color="#d98f3e"/>
+      <stop offset="1" stop-color="#a85a1f"/>
+    </radialGradient>
+    <linearGradient id="ear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbe6bf"/>
+      <stop offset="1" stop-color="#e9b874"/>
+    </linearGradient>
+  </defs>
+
+  <!-- loaf body -->
+  <path d="M40 330
+           C40 190 140 92 256 92
+           C372 92 472 190 472 330
+           C472 400 400 430 256 430
+           C112 430 40 400 40 330 Z"
+        fill="url(#crust)" stroke="#5e2f10" stroke-width="16" stroke-linejoin="round"/>
+
+  <!-- score: one big curved slash with the opened "ear" -->
+  <path d="M118 238 C178 150 300 128 388 170
+           C318 160 206 178 140 252 Z"
+        fill="url(#ear)" stroke="#5e2f10" stroke-width="10" stroke-linejoin="round"/>
+
+  <!-- flour dusting -->
+  <g fill="#fff6e6" opacity="0.85">
+    <circle cx="300" cy="120" r="7"/>
+    <circle cx="334" cy="134" r="5"/>
+    <circle cx="214" cy="118" r="5"/>
+    <circle cx="410" cy="226" r="6"/>
+    <circle cx="96" cy="300" r="5"/>
+  </g>
+
+  <!-- Godot-style eyes -->
+  <g stroke="#5e2f10" stroke-width="10">
+    <circle cx="190" cy="318" r="46" fill="#ffffff"/>
+    <circle cx="322" cy="318" r="46" fill="#ffffff"/>
+  </g>
+  <g fill="#414042">
+    <circle cx="198" cy="326" r="24"/>
+    <circle cx="314" cy="326" r="24"/>
+  </g>
+</svg>

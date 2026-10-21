@@ -6,9 +6,12 @@ Comment=Install, switch and launch Godot Engine versions — dev mode with hot r
 Keywords=Godot;GodotEngine;Godot4;Godot3;engine;version;manager;gamedev;game;launcher;
 # %k is this file's own path, so dev.sh is found next to it wherever the repo
 # is cloned -- no absolute paths. Desktop entries can't express a relative
-# Icon=, so it uses a stock theme icon.
+# Icon= either, so dev.sh installs build/appicon.svg into the user icon theme
+# as sourdot-dev; until the first launch the generic icon shows instead. It
+# also installs a copy of this entry (comments dropped, Exec and Icon absolute)
+# so the taskbar can match the window to it via StartupWMClass.
 Exec=bash -c "exec \\"\\$(dirname \\"\\$1\\")/dev.sh\\" --gui" sourdot %k
-Icon=applications-development
+Icon=sourdot-dev
 Terminal=false
 Categories=Development;IDE;
 StartupWMClass=sourdot

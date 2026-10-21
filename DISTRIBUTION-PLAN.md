@@ -69,7 +69,7 @@ wails build -platform windows/amd64 -nsis -installscope user -ldflags "..."
 
 Create:
 - `build/linux/sourdot.desktop` — relative `Exec=sourdot %U`, `Icon=sourdot`, `Categories=Development;IDE;`, and **`StartupWMClass=sourdot`** (without it GNOME/KDE show a generic task-switcher icon for Wails windows). Must also carry `GenericName=Godot Version Manager` and a `Keywords=Godot;GodotEngine;Godot4;Godot3;engine;version;manager;gamedev;launcher;` line — the name "Sourdot" is not self-describing, and GNOME/KDE app search match on Name/GenericName/Comment/Keywords, so without these a user searching "godot" never finds the app. Mirror whatever `Sourdot-Dev.desktop` uses; that file stays dev-only.
-- `build/linux/icons/hicolor/{16,32,48,64,128,256,512}/apps/sourdot.png`
+- `build/linux/icons/hicolor/{16,32,48,64,128,256,512}/apps/sourdot.png` — generated from `build/appicon.svg` by adding the sizes to `make icons` (or ship the SVG itself as `scalable/apps/sourdot.svg`)
 - `scripts/make-appimage.sh $VERSION` — assemble `AppDir` (binary at `usr/bin/`, desktop file + icon at root and under `usr/share/`), write a 6-line `AppRun`, then `appimagetool --runtime-file <pinned type2-runtime>`. Pin and sha256-check both downloads.
 
 The modern type2-runtime statically links squashfuse, so **libfuse2 is not required on the host** — this removes the classic Fedora papercut.

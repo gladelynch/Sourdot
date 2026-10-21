@@ -74,6 +74,18 @@ the repo is cloned.
 The app's own output also goes to `sourdot.log` in the config directory (see
 `internal/applog`).
 
+The taskbar only finds a window's icon through an *installed* desktop entry,
+so `dev.sh` installs one for itself on Linux:
+`~/.local/share/applications/sourdot-dev.desktop` (which also puts "Sourdot
+(dev)" in the app menu) and the icon the repo's entry names,
+`~/.local/share/icons/hicolor/scalable/apps/sourdot-dev.svg`. Until the
+first launch, `Sourdot-Dev.desktop` shows a generic icon in the file
+manager. Delete those two files to undo.
+
+The icon's one source is `build/appicon.svg`; after editing it, run
+`make icons` to regenerate the PNG/ICO Wails builds with and the frontend's
+copy.
+
 ## The frontend
 
 Preact + JSX, bundled to a single `frontend/dist/js/app.js` (~35 KB

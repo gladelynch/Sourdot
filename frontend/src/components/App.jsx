@@ -37,8 +37,11 @@ export function App() {
         <div class="app">
             <nav class="sidebar" aria-label="Primary">
                 <div class="brand">
-                    <div class="brand-name">Sourdot</div>
-                    <div class="brand-tagline">Godot Version Manager</div>
+                    <img class="brand-logo" src="assets/images/logo.svg" alt="" />
+                    <div>
+                        <div class="brand-name">Sourdot</div>
+                        <div class="brand-tagline">Godot Version Manager</div>
+                    </div>
                 </div>
                 {navButton("versions", "Versions")}
                 {navButton("projects", "Projects")}
